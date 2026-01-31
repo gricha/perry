@@ -49,17 +49,11 @@ Run the appropriate validation for your changes.
 
 3. If validation fails, fix issues and re-run
 
-## Run Review Agents in Parallel
-
-While validation runs, spawn review subagents in parallel based on what changed:
-
-| Changed files | Run agent |
-|---------------|-----------|
-| Auth, user input, data handling | `security-review` |
-| Loops, data fetching, DB queries | `perf-review` |
-| `web/` or `mobile/` (.tsx/.jsx) | `react-review` |
-
-These agents review your local changes and report issues. Run them in parallel with validation to save time.
+4. Run warden to get code review feedback locally (security, react best practices, code simplification):
+   ```bash
+   warden -v
+   ```
+   The `-v` flag streams findings in real-time. Fix any issues warden finds before creating a PR.
 
 ## Notes
 

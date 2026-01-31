@@ -13,19 +13,9 @@ Use the `skill` tool for common workflows:
 
 If validation fails due to missing tools, install dependencies first with `bun install`.
 
-## Code Review Agents
+## Code Review
 
-Before submitting changes, run review agents in parallel with validation:
-
-| Agent | When to use |
-|-------|-------------|
-| `security-review` | After auth, data handling, or user input changes |
-| `perf-review` | After adding loops, data fetching, or heavy computation |
-| `react-review` | After React component changes (web/ or mobile/) |
-
-These agents review your local changes (uncommitted, branch diff, or last commit) and report issues. They will be honest - if the code is good, they'll say so. They may also suggest lint rules or tests to prevent similar issues in the future.
-
-**Location**: Claude Code uses `.claude/agents/`, OpenCode uses `.opencode/agent/` (OpenCode agents reference the Claude Code files for shared instructions).
+Code reviews (security, react best practices, code simplification) are handled automatically by [Warden](https://github.com/getsentry/warden) on pull requests. See `warden.toml` for the configured triggers.
 
 ## Architecture
 
