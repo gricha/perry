@@ -142,13 +142,13 @@ Skills can be fetched from GitHub repositories:
 
 ```bash
 # Add a remote skill
-warden add --repo getsentry/skills --skill security-review
+warden add --remote getsentry/skills --skill security-review
 
 # Add with version pinning (recommended for reproducibility)
-warden add --repo getsentry/skills@abc123 --skill security-review
+warden add --remote getsentry/skills@abc123 --skill security-review
 
 # List skills in a remote repo
-warden add --repo getsentry/skills --list
+warden add --remote getsentry/skills --list
 
 # Update all unpinned remote skills
 warden sync
@@ -174,30 +174,6 @@ remote = "getsentry/skills@abc123"
 **Cache location:** `~/.local/warden/skills/` (override with `WARDEN_STATE_DIR`)
 
 **Cache TTL:** 24 hours for unpinned refs (override with `WARDEN_SKILL_CACHE_TTL` in seconds)
-
-**Inline skill in warden.toml:**
-
-```toml
-[[skills]]
-name = "custom-check"
-description = "Check for TODO comments"
-prompt = """
-Find TODO comments that have been in the code for too long.
-Report as low severity findings.
-"""
-
-[skills.tools]
-allowed = ["Read", "Grep", "Glob"]
-```
-
-## Built-in Skills
-
-| Skill | Purpose |
-|-------|---------|
-| `find-bugs` | Logical/functional bugs, null handling, async issues |
-| `security-review` | Injection, auth, CSRF, crypto, race conditions |
-| `code-simplifier` | Readability, consistency, redundancy removal |
-| `performance-review` | N+1 queries, blocking I/O, memory leaks |
 
 ## Common Patterns
 
