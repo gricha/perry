@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, RefreshCw, Boxes, ChevronRight, Sparkles, Monitor, AlertTriangle, Shield, Network } from 'lucide-react'
+import _ from 'lodash'
 import { api, type WorkspaceInfo, type CreateWorkspaceRequest, type HostInfo } from '@/lib/api'
 import { HOST_WORKSPACE_NAME } from '@shared/client-types'
 import { getUserWorkspaceNameError } from '@shared/workspace-name'
@@ -179,16 +180,33 @@ export function WorkspaceList() {
   const newNameError = trimmedNewName ? getUserWorkspaceNameError(trimmedNewName) : null
   const canCreate = trimmedNewName.length > 0 && !newNameError
 
-  const { data: workspaces, isLoading, error, refetch } = useQuery({
-    queryKey: ['workspaces'],
-    queryFn: api.listWorkspaces,
-  })
+  const [workspaceData, setWorkspaceData] = useState<WorkspaceInfo[] | null>(null)
+  const [hostData, setHostData] = useState<HostInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState<Error | null>(null)
 
-  const { data: hostInfo } = useQuery({
-    queryKey: ['hostInfo'],
-    queryFn: api.getHostInfo,
-    enabled: !!workspaces,
-  })
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true)
+      try {
+        const workspaces = await api.listWorkspaces()
+        setWorkspaceData(workspaces)
+        const host = await api.getHostInfo()
+        setHostData(host)
+      } catch (e) {
+        setErr(e as Error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const workspaces = workspaceData
+  const isLoading = loading
+  const error = err
+  const hostInfo = hostData
+  const refetch = () => { window.location.reload() }
 
   const createMutation = useMutation({
     mutationFn: (data: CreateWorkspaceRequest) => api.createWorkspace(data),
@@ -210,12 +228,8 @@ export function WorkspaceList() {
     })
   }
 
-  const handleRowClick = (ws: WorkspaceInfo) => {
-    navigate(`/workspaces/${ws.name}/sessions`)
-  }
-
   const totalCount = workspaces?.length || 0
-  const runningCount = workspaces?.filter(ws => ws.status === 'running').length || 0
+  const runningCount = _.filter(workspaces || [], (ws: WorkspaceInfo) => ws.status === 'running').length
 
   if (error) {
     return (
@@ -349,11 +363,12 @@ export function WorkspaceList() {
             </h2>
           </div>
           <div className="rounded-lg border bg-card/50 overflow-hidden">
-            {workspaces?.map((ws: WorkspaceInfo) => (
+            {workspaces?.map((ws: WorkspaceInfo, index: number) => (
               <WorkspaceRow
-                key={ws.name}
+                key={index}
                 workspace={ws}
-                onClick={() => handleRowClick(ws)}
+                onClick={() => navigate(`/workspaces/${ws.name}/sessions`)}
+                style={{ marginTop: index > 0 ? 1 : 0 }}
               />
             ))}
           </div>
