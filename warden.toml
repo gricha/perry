@@ -1,17 +1,11 @@
 version = 1
 
-[defaults.filters]
-ignorePaths = ["docs/**", "**/*.md", "**/*.lock", "**/*.json"]
-
 [[triggers]]
 name = "security-review"
 event = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
 skill = "security-review"
 remote = "getsentry/skills"
-
-[triggers.filters]
-paths = ["src/**", "web/**", "mobile/**"]
 
 [[triggers]]
 name = "react-best-practices"
@@ -20,15 +14,9 @@ actions = ["opened", "synchronize", "reopened"]
 skill = "vercel-react-best-practices"
 remote = "vercel-labs/agent-skills"
 
-[triggers.filters]
-paths = ["**/*.tsx", "**/*.jsx"]
-
 [[triggers]]
 name = "code-simplifier"
 event = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
 skill = "code-simplifier"
 remote = "getsentry/skills"
-
-[triggers.filters]
-paths = ["src/**", "web/**", "mobile/**"]
