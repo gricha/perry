@@ -187,6 +187,7 @@ export function WorkspaceList() {
   const { data: hostInfo } = useQuery({
     queryKey: ['hostInfo'],
     queryFn: api.getHostInfo,
+    enabled: !!workspaces,
   })
 
   const createMutation = useMutation({
