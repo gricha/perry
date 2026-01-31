@@ -5,9 +5,18 @@ name = "security-review"
 event = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
 skill = "security-review"
+remote = "getsentry/skills"
 
 [[triggers]]
-name = "vercel-react-best-practices"
+name = "react-best-practices"
 event = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
 skill = "vercel-react-best-practices"
+remote = "vercel-labs/agent-skills"
+
+[[triggers]]
+name = "code-simplifier"
+event = "pull_request"
+actions = ["opened", "synchronize", "reopened"]
+skill = "code-simplifier"
+remote = "getsentry/skills"
