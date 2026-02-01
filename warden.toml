@@ -12,6 +12,7 @@ name = "react-best-practices"
 event = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
 skill = "vercel-react-best-practices"
+remote = "vercel-labs/agent-skills"
 
 [[triggers]]
 name = "code-simplifier"
