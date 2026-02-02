@@ -2,7 +2,7 @@ import type { ChatMessage } from '../chat/types';
 
 export type SessionStatus = 'idle' | 'running' | 'error' | 'interrupted';
 
-export type AgentType = 'claude' | 'opencode' | 'codex';
+export type AgentType = 'claude' | 'opencode' | 'codex' | 'pi';
 
 export interface SessionInfo {
   id: string;

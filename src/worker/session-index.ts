@@ -5,7 +5,7 @@ import { watch, type FSWatcher } from 'node:fs';
 
 export interface IndexedSession {
   id: string;
-  agentType: 'claude' | 'opencode';
+  agentType: 'claude' | 'opencode' | 'pi';
   title: string;
   directory: string;
   filePath: string;
@@ -27,13 +27,21 @@ class SessionIndex {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    await Promise.all([this.discoverClaudeSessions(), this.discoverOpencodeSessions()]);
+    await Promise.all([
+      this.discoverClaudeSessions(),
+      this.discoverOpencodeSessions(),
+      this.discoverPiSessions(),
+    ]);
 
     this.initialized = true;
   }
 
   async refresh(): Promise<void> {
-    await Promise.all([this.discoverClaudeSessions(), this.discoverOpencodeSessions()]);
+    await Promise.all([
+      this.discoverClaudeSessions(),
+      this.discoverOpencodeSessions(),
+      this.discoverPiSessions(),
+    ]);
   }
 
   startWatchers(): void {
@@ -46,9 +54,11 @@ class SessionIndex {
       'storage',
       'session'
     );
+    const piDir = path.join(os.homedir(), '.pi', 'agent', 'sessions');
 
     this.watchDirectory(claudeDir, 'claude');
     this.watchDirectory(opencodeDir, 'opencode');
+    this.watchDirectory(piDir, 'pi');
   }
 
   stopWatchers(): void {
@@ -80,6 +90,8 @@ class SessionIndex {
 
     if (session.agentType === 'claude') {
       return this.getClaudeMessages(session, opts);
+    } else if (session.agentType === 'pi') {
+      return this.getPiMessages(session, opts);
     } else {
       return this.getOpencodeMessages(session, opts);
     }
@@ -93,6 +105,8 @@ class SessionIndex {
 
     try {
       if (session.agentType === 'claude') {
+        await fs.unlink(session.filePath);
+      } else if (session.agentType === 'pi') {
         await fs.unlink(session.filePath);
       } else {
         const { deleteOpencodeSession } = await import('../sessions/agents/opencode-storage');
@@ -214,7 +228,7 @@ class SessionIndex {
     }
   }
 
-  private watchDirectory(dir: string, agentType: 'claude' | 'opencode'): void {
+  private watchDirectory(dir: string, agentType: 'claude' | 'opencode' | 'pi'): void {
     try {
       const watcher = watch(dir, { recursive: true }, (event, filename) => {
         if (!filename) return;
@@ -244,7 +258,7 @@ class SessionIndex {
   private async handleFileChange(
     baseDir: string,
     filename: string,
-    agentType: 'claude' | 'opencode'
+    agentType: 'claude' | 'opencode' | 'pi'
   ): Promise<void> {
     const filePath = path.join(baseDir, filename);
 
@@ -257,6 +271,19 @@ class SessionIndex {
         await this.indexClaudeSession(filePath, projectName);
       } catch {
         const sessionId = path.basename(filename, '.jsonl');
+        this.sessions.delete(sessionId);
+      }
+    } else if (agentType === 'pi') {
+      if (!filename.endsWith('.jsonl')) return;
+
+      try {
+        await fs.access(filePath);
+        const dirName = path.dirname(filename);
+        await this.indexPiSession(filePath, dirName);
+      } catch {
+        const basename = path.basename(filename, '.jsonl');
+        const idParts = basename.split('_');
+        const sessionId = idParts.length > 1 ? idParts[idParts.length - 1] : basename;
         this.sessions.delete(sessionId);
       }
     } else {
@@ -394,6 +421,146 @@ class SessionIndex {
       return { id: session.id, messages: [], total: 0 };
     }
   }
+
+  private async discoverPiSessions(): Promise<void> {
+    const piDir = path.join(os.homedir(), '.pi', 'agent', 'sessions');
+
+    try {
+      await this.scanPiDirectory(piDir);
+    } catch {
+      // Pi directory doesn't exist
+    }
+  }
+
+  private async scanPiDirectory(dir: string): Promise<void> {
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
+      await Promise.all(
+        entries.map(async (entry) => {
+          const entryPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            await this.scanPiDirectory(entryPath);
+          } else if (entry.name.endsWith('.jsonl')) {
+            const dirName = path.basename(dir);
+            await this.indexPiSession(entryPath, dirName);
+          }
+        })
+      );
+    } catch {
+      // Directory may not exist
+    }
+  }
+
+  private async indexPiSession(filePath: string, dirName: string): Promise<void> {
+    try {
+      const fileStat = await fs.stat(filePath);
+      const content = await fs.readFile(filePath, 'utf-8');
+      const lines = content.trim().split('\n').filter(Boolean);
+
+      if (lines.length === 0) return;
+
+      const basename = path.basename(filePath, '.jsonl');
+      const idParts = basename.split('_');
+      let sessionId = idParts.length > 1 ? idParts[idParts.length - 1] : basename;
+      let firstPrompt: string | null = null;
+
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line) as PiLogEntry;
+          if (entry.type === 'header' && entry.id) {
+            sessionId = entry.id;
+          }
+          if (entry.type === 'message' && entry.role === 'user' && !firstPrompt) {
+            if (typeof entry.content === 'string' && entry.content.trim()) {
+              firstPrompt = entry.content.slice(0, 200);
+            } else if (Array.isArray(entry.content)) {
+              const textContent = entry.content.find((c: { type: string }) => c.type === 'text');
+              if (textContent?.text) {
+                firstPrompt = textContent.text.slice(0, 200);
+              }
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      const messageCount = lines.filter((line) => {
+        try {
+          const entry = JSON.parse(line) as PiLogEntry;
+          return entry.type === 'message' && (entry.role === 'user' || entry.role === 'assistant');
+        } catch {
+          return false;
+        }
+      }).length;
+
+      this.sessions.set(sessionId, {
+        id: sessionId,
+        agentType: 'pi',
+        title: firstPrompt || dirName,
+        directory: dirName,
+        filePath,
+        messageCount,
+        firstPrompt,
+        lastActivity: fileStat.mtimeMs,
+      });
+    } catch {
+      // File may have been removed or is invalid
+    }
+  }
+
+  private async getPiMessages(
+    session: IndexedSession,
+    opts: { limit: number; offset: number }
+  ): Promise<{ id: string; messages: Message[]; total: number }> {
+    try {
+      const content = await fs.readFile(session.filePath, 'utf-8');
+      const lines = content.trim().split('\n').filter(Boolean);
+
+      const messages: Message[] = [];
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line) as PiLogEntry;
+          if (entry.type === 'message' && (entry.role === 'user' || entry.role === 'assistant')) {
+            let textContent: string | undefined;
+            if (typeof entry.content === 'string') {
+              textContent = entry.content;
+            } else if (Array.isArray(entry.content)) {
+              const text = entry.content.find((c: { type: string }) => c.type === 'text');
+              textContent = text?.text;
+            }
+            if (textContent) {
+              messages.push({
+                type: entry.role,
+                content: textContent,
+                timestamp: entry.timestamp,
+              });
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      const total = messages.length;
+      const startIndex = Math.max(0, total - opts.offset - opts.limit);
+      const endIndex = total - opts.offset;
+      const slice = messages.slice(startIndex, endIndex);
+
+      return { id: session.id, messages: slice, total };
+    } catch {
+      return { id: session.id, messages: [], total: 0 };
+    }
+  }
+}
+
+interface PiLogEntry {
+  type: string;
+  id?: string;
+  role?: 'user' | 'assistant';
+  content?: string | Array<{ type: string; text?: string }>;
+  timestamp?: string;
 }
 
 export interface Message {

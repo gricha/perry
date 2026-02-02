@@ -65,7 +65,7 @@ export interface WorkspaceTailscale {
   error?: string;
 }
 
-export type SkillAppliesTo = 'all' | Array<'claude-code' | 'opencode' | 'codex'>;
+export type SkillAppliesTo = 'all' | Array<'claude-code' | 'opencode' | 'codex' | 'pi'>;
 
 export interface SkillDefinition {
   id: string;

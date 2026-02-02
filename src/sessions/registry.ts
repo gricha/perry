@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import lockfile from 'proper-lockfile';
 
-export type AgentType = 'claude' | 'opencode' | 'codex';
+export type AgentType = 'claude' | 'opencode' | 'codex' | 'pi';
 
 export interface SessionRecord {
   perrySessionId: string;

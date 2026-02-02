@@ -2,9 +2,9 @@
 sidebar_position: 2
 ---
 
-# Claude Code Workflow
+# Claude Code and Codex Workflow
 
-Claude Code runs inside workspaces. There is no external server to attach to, so you connect via a terminal and run the client in the workspace.
+Claude Code and Codex run inside workspaces. There is no external server to attach to, so you connect via a terminal and run the client in the workspace.
 
 ## Overview
 

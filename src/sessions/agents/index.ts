@@ -3,6 +3,7 @@ import type { RawSession, SessionListItem, ExecInContainer, AgentSessionProvider
 import { claudeProvider } from './claude';
 import { opencodeProvider } from './opencode';
 import { codexProvider } from './codex';
+import { piProvider } from './pi';
 import {
   discoverSessionsViaWorker,
   getSessionDetailsViaWorker,
@@ -14,12 +15,14 @@ export type { RawSession, SessionListItem, ExecInContainer, AgentSessionProvider
 export { claudeProvider } from './claude';
 export { opencodeProvider } from './opencode';
 export { codexProvider } from './codex';
+export { piProvider } from './pi';
 export { clearWorkerClientCache } from './worker-provider';
 
 const _providers: Record<AgentType, AgentSessionProvider> = {
   'claude-code': claudeProvider,
   opencode: opencodeProvider,
   codex: codexProvider,
+  pi: piProvider,
 };
 
 export async function discoverAllSessions(
@@ -107,6 +110,7 @@ export async function searchSessions(
     '/home/workspace/.claude/projects',
     '/home/workspace/.local/share/opencode/storage',
     '/home/workspace/.codex/sessions',
+    '/home/workspace/.pi/agent/sessions',
   ];
 
   const rgCommand = `rg -l -i --no-messages "${safeQuery}" ${searchPaths.join(' ')} 2>/dev/null | head -100`;
@@ -147,6 +151,12 @@ export async function searchSessions(
       if (match) {
         sessionId = match[1];
         agentType = 'codex';
+      }
+    } else if (file.includes('/.pi/agent/sessions/')) {
+      const match = file.match(/\/([^/]+)\.jsonl$/);
+      if (match) {
+        sessionId = match[1];
+        agentType = 'pi';
       }
     }
 

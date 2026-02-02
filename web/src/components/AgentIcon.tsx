@@ -12,6 +12,7 @@ const AGENT_COLORS: Record<AgentType, string> = {
   'claude-code': 'bg-orange-500/10 border-orange-500/20',
   opencode: 'bg-emerald-500/10 border-emerald-500/20',
   codex: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  pi: 'bg-violet-500/10 border-violet-500/20',
 }
 
 // Claude's official brand icon (from Bootstrap Icons / Anthropic branding)
@@ -71,17 +72,39 @@ function CodexIcon({ className }: { className?: string }) {
   )
 }
 
+// Pi icon - pi symbol
+function PiIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <path
+        d="M6 7h12M9 7v10M15 7v10"
+        stroke="#8B5CF6"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function AgentIcon({ agentType, className, size = 'sm', 'data-testid': testId }: AgentIconProps) {
   const sizeClasses = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5'
   const containerClasses = size === 'sm'
     ? 'px-1 py-0.5 rounded'
     : 'px-1.5 py-1 rounded-md'
 
-  const IconComponent = agentType === 'claude-code' 
-    ? ClaudeIcon 
-    : agentType === 'opencode' 
-      ? OpenCodeIcon 
-      : CodexIcon
+  const IconComponent = agentType === 'claude-code'
+    ? ClaudeIcon
+    : agentType === 'opencode'
+      ? OpenCodeIcon
+      : agentType === 'pi'
+        ? PiIcon
+        : CodexIcon
 
   return (
     <span

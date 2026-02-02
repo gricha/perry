@@ -7,7 +7,7 @@ export interface SessionMessage {
   toolInput?: string;
 }
 
-export type AgentType = 'claude-code' | 'opencode' | 'codex';
+export type AgentType = 'claude-code' | 'opencode' | 'codex' | 'pi';
 
 export interface SessionMetadata {
   id: string;

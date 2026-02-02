@@ -383,6 +383,10 @@ export class WorkspaceManager {
         name: 'opencode',
         command: 'curl -fsSL https://opencode.ai/install | bash',
       },
+      {
+        name: 'pi',
+        command: 'npm install -g @mariozechner/pi-coding-agent',
+      },
     ];
 
     for (const update of updates) {

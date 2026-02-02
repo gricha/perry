@@ -13,6 +13,7 @@ Perry copies host credentials into each workspace when they exist:
 - Claude Code: `~/.claude/.credentials.json`
 - OpenCode: `~/.config/opencode/opencode.json`, `~/.local/share/opencode/auth.json`
 - Codex CLI: `~/.codex/`
+- Pi: `~/.pi/agent/auth.json`, `~/.pi/agent/settings.json`, `~/.pi/agent/models.json`
 
 ## OpenCode
 

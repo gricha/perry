@@ -72,7 +72,7 @@ export interface CodingAgents {
   };
 }
 
-export type AgentType = 'claude-code' | 'opencode' | 'codex';
+export type AgentType = 'claude-code' | 'opencode' | 'codex' | 'pi';
 
 export interface SessionInfo {
   id: string;

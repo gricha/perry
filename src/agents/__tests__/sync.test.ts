@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { syncAgent, syncAllAgents, getCredentialFilePaths, createSyncContext } from '../index';
 import { createMockFileCopier } from '../sync/copier';
+import { piSync } from '../sync/pi';
 import type { AgentSyncProvider, SyncContext } from '../types';
 
 function createMockContext(overrides: Partial<SyncContext> = {}): SyncContext {
@@ -242,7 +243,7 @@ describe('syncAgent', () => {
 });
 
 describe('syncAllAgents', () => {
-  it('syncs all three agents', async () => {
+  it('syncs all agents', async () => {
     const copier = createMockFileCopier();
 
     const results = await syncAllAgents(
@@ -258,6 +259,7 @@ describe('syncAllAgents', () => {
     expect(results['claude-code']).toBeDefined();
     expect(results['opencode']).toBeDefined();
     expect(results['codex']).toBeDefined();
+    expect(results['pi']).toBeDefined();
   });
 
   it('returns results per agent', async () => {
@@ -273,7 +275,7 @@ describe('syncAllAgents', () => {
       copier
     );
 
-    for (const agentType of ['claude-code', 'opencode', 'codex'] as const) {
+    for (const agentType of ['claude-code', 'opencode', 'codex', 'pi'] as const) {
       const result = results[agentType];
       expect(result).toHaveProperty('copied');
       expect(result).toHaveProperty('generated');
@@ -291,6 +293,7 @@ describe('getCredentialFilePaths', () => {
     expect(paths).toContain('~/.codex/auth.json');
     expect(paths).toContain('~/.local/share/opencode/auth.json');
     expect(paths).toContain('~/.local/share/opencode/mcp-auth.json');
+    expect(paths).toContain('~/.pi/agent/auth.json');
   });
 
   it('does not include preference-only files', () => {
@@ -298,6 +301,8 @@ describe('getCredentialFilePaths', () => {
 
     expect(paths).not.toContain('~/.claude/settings.json');
     expect(paths).not.toContain('~/.codex/config.toml');
+    expect(paths).not.toContain('~/.pi/agent/settings.json');
+    expect(paths).not.toContain('~/.pi/agent/models.json');
   });
 });
 
@@ -323,5 +328,69 @@ describe('createSyncContext', () => {
     const context = createSyncContext('my-container', config);
 
     expect(context.agentConfig).toBe(config);
+  });
+});
+
+describe('piSync', () => {
+  it('requires .pi/agent directory', () => {
+    const dirs = piSync.getRequiredDirs();
+    expect(dirs).toContain('/home/workspace/.pi/agent');
+  });
+
+  it('syncs auth.json as credential', async () => {
+    const context = createMockContext();
+    const files = await piSync.getFilesToSync(context);
+
+    const authFile = files.find((f) => f.source === '~/.pi/agent/auth.json');
+    expect(authFile).toBeDefined();
+    expect(authFile!.category).toBe('credential');
+    expect(authFile!.permissions).toBe('600');
+    expect(authFile!.optional).toBe(true);
+  });
+
+  it('syncs settings.json as preference', async () => {
+    const context = createMockContext();
+    const files = await piSync.getFilesToSync(context);
+
+    const settingsFile = files.find((f) => f.source === '~/.pi/agent/settings.json');
+    expect(settingsFile).toBeDefined();
+    expect(settingsFile!.category).toBe('preference');
+    expect(settingsFile!.permissions).toBe('644');
+  });
+
+  it('syncs models.json as preference', async () => {
+    const context = createMockContext();
+    const files = await piSync.getFilesToSync(context);
+
+    const modelsFile = files.find((f) => f.source === '~/.pi/agent/models.json');
+    expect(modelsFile).toBeDefined();
+    expect(modelsFile!.category).toBe('preference');
+    expect(modelsFile!.permissions).toBe('644');
+  });
+
+  it('has no directories to sync', async () => {
+    const context = createMockContext();
+    const dirs = await piSync.getDirectoriesToSync(context);
+    expect(dirs).toHaveLength(0);
+  });
+
+  it('has no generated configs', async () => {
+    const context = createMockContext();
+    const configs = await piSync.getGeneratedConfigs(context);
+    expect(configs).toHaveLength(0);
+  });
+
+  it('copies auth when file exists on host', async () => {
+    const context = createMockContext({
+      hostFileExists: async (path) => path === '~/.pi/agent/auth.json',
+    });
+    const copier = createMockFileCopier();
+
+    const result = await syncAgent(piSync, context, copier);
+
+    expect(result.copied).toContain('~/.pi/agent/auth.json');
+    expect(result.skipped).toContain('~/.pi/agent/settings.json');
+    expect(result.skipped).toContain('~/.pi/agent/models.json');
+    expect(result.errors).toHaveLength(0);
   });
 });

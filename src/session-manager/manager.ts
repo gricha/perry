@@ -49,6 +49,8 @@ export class SessionManager {
         return new OpenCodeAdapter();
       case 'codex':
         throw new Error('Codex adapter not yet implemented');
+      case 'pi':
+        throw new Error('Pi adapter not yet implemented');
     }
   }
 
