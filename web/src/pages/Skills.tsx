@@ -13,6 +13,7 @@ const AGENT_LABELS: Record<AgentType, string> = {
   'claude-code': 'Claude Code',
   opencode: 'OpenCode',
   codex: 'Codex',
+  pi: 'Pi',
 };
 
 function slugify(name: string): string {
