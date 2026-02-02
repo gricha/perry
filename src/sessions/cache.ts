@@ -4,7 +4,7 @@ import path from 'path';
 export interface RecentSession {
   workspaceName: string;
   sessionId: string;
-  agentType: 'claude-code' | 'opencode' | 'codex';
+  agentType: 'claude-code' | 'opencode' | 'codex' | 'pi';
   lastAccessed: string;
 }
 
@@ -52,7 +52,7 @@ export class SessionsCacheManager {
   async recordAccess(
     workspaceName: string,
     sessionId: string,
-    agentType: 'claude-code' | 'opencode' | 'codex'
+    agentType: 'claude-code' | 'opencode' | 'codex' | 'pi'
   ): Promise<void> {
     const cache = await this.load();
 

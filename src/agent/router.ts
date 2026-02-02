@@ -105,7 +105,7 @@ const CodingAgentsSchema = z.object({
     .optional(),
 });
 
-const AgentTypeSchema = z.enum(['claude-code', 'opencode', 'codex']);
+const AgentTypeSchema = z.enum(['claude-code', 'opencode', 'codex', 'pi']);
 
 const SkillAppliesToSchema = z.union([z.literal('all'), z.array(AgentTypeSchema)]);
 
@@ -785,7 +785,7 @@ export function createRouter(ctx: RouterContext) {
 
   type ListSessionsInput = {
     workspaceName: string;
-    agentType?: 'claude-code' | 'opencode' | 'codex';
+    agentType?: 'claude-code' | 'opencode' | 'codex' | 'pi';
     limit?: number;
     offset?: number;
   };
@@ -793,17 +793,17 @@ export function createRouter(ctx: RouterContext) {
   const hostSessionIndex = new SessionIndex();
   let hostSessionIndexInitialized = false;
 
-  function toRegistryAgentType(agentType: 'claude-code' | 'opencode' | 'codex' | 'claude') {
+  function toRegistryAgentType(agentType: 'claude-code' | 'opencode' | 'codex' | 'pi' | 'claude') {
     return agentType === 'claude-code' ? 'claude' : agentType;
   }
 
-  function toClientAgentType(agentType: 'claude' | 'opencode' | 'codex') {
+  function toClientAgentType(agentType: 'claude' | 'opencode' | 'codex' | 'pi') {
     return agentType === 'claude' ? 'claude-code' : agentType;
   }
 
   async function ensureRegistrySession(
     workspaceName: string,
-    agentType: 'claude-code' | 'opencode' | 'codex' | 'claude',
+    agentType: 'claude-code' | 'opencode' | 'codex' | 'pi' | 'claude',
     agentSessionId: string,
     options?: { projectPath?: string | null; createdAt?: string; lastActivity?: string }
   ) {
@@ -891,7 +891,7 @@ export function createRouter(ctx: RouterContext) {
 
   async function getHostSession(
     sessionId: string,
-    _agentType?: 'claude-code' | 'opencode' | 'codex'
+    _agentType?: 'claude-code' | 'opencode' | 'codex' | 'pi'
   ) {
     if (!hostSessionIndexInitialized) {
       await hostSessionIndex.initialize();
@@ -1007,7 +1007,7 @@ export function createRouter(ctx: RouterContext) {
     .input(
       z.object({
         workspaceName: AnyWorkspaceNameSchema,
-        agentType: z.enum(['claude-code', 'opencode', 'codex']).optional(),
+        agentType: z.enum(['claude-code', 'opencode', 'codex', 'pi']).optional(),
         limit: z.number().optional().default(50),
         offset: z.number().optional().default(0),
       })
@@ -1021,7 +1021,7 @@ export function createRouter(ctx: RouterContext) {
       z.object({
         workspaceName: AnyWorkspaceNameSchema,
         sessionId: z.string(),
-        agentType: z.enum(['claude-code', 'opencode', 'codex']).optional(),
+        agentType: z.enum(['claude-code', 'opencode', 'codex', 'pi']).optional(),
         projectPath: z.string().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
@@ -1150,7 +1150,7 @@ export function createRouter(ctx: RouterContext) {
       z.object({
         workspaceName: AnyWorkspaceNameSchema,
         sessionId: z.string(),
-        agentType: z.enum(['claude-code', 'opencode', 'codex']),
+        agentType: z.enum(['claude-code', 'opencode', 'codex', 'pi']),
       })
     )
     .handler(async ({ input }) => {
@@ -1163,7 +1163,7 @@ export function createRouter(ctx: RouterContext) {
       z.object({
         workspaceName: AnyWorkspaceNameSchema,
         sessionId: z.string(),
-        agentType: z.enum(['claude-code', 'opencode', 'codex']),
+        agentType: z.enum(['claude-code', 'opencode', 'codex', 'pi']),
       })
     )
     .handler(async ({ input }) => {
@@ -1280,7 +1280,7 @@ export function createRouter(ctx: RouterContext) {
   async function searchHostSessions(query: string): Promise<
     Array<{
       sessionId: string;
-      agentType: 'claude-code' | 'opencode' | 'codex';
+      agentType: 'claude-code' | 'opencode' | 'codex' | 'pi';
       matchCount: number;
       agentSessionId?: string;
     }>
@@ -1291,6 +1291,7 @@ export function createRouter(ctx: RouterContext) {
       path.join(homeDir, '.claude', 'projects'),
       path.join(homeDir, '.local', 'share', 'opencode', 'storage'),
       path.join(homeDir, '.codex', 'sessions'),
+      path.join(homeDir, '.pi', 'agent', 'sessions'),
     ].filter((p) => {
       try {
         require('fs').accessSync(p);
@@ -1317,14 +1318,14 @@ export function createRouter(ctx: RouterContext) {
       const files = output.trim().split('\n').filter(Boolean);
       const results: Array<{
         sessionId: string;
-        agentType: 'claude-code' | 'opencode' | 'codex';
+        agentType: 'claude-code' | 'opencode' | 'codex' | 'pi';
         matchCount: number;
         agentSessionId?: string;
       }> = [];
 
       for (const file of files) {
         let sessionId: string | null = null;
-        let agentType: 'claude-code' | 'opencode' | 'codex' | null = null;
+        let agentType: 'claude-code' | 'opencode' | 'codex' | 'pi' | null = null;
 
         if (file.includes('/.claude/projects/')) {
           const match = file.match(/\/([^/]+)\.jsonl$/);
@@ -1346,6 +1347,12 @@ export function createRouter(ctx: RouterContext) {
             sessionId = match[1];
             agentType = 'codex';
           }
+        } else if (file.includes('/.pi/agent/sessions/')) {
+          const match = file.match(/\/([^/]+)\.jsonl$/);
+          if (match) {
+            sessionId = match[1];
+            agentType = 'pi';
+          }
         }
 
         if (sessionId && agentType) {
@@ -1365,9 +1372,43 @@ export function createRouter(ctx: RouterContext) {
     }
   }
 
+  async function findPiSessionFileOnHost(
+    baseDir: string,
+    sessionId: string
+  ): Promise<string | null> {
+    async function scan(dir: string): Promise<string | null> {
+      try {
+        const entries = await fs.readdir(dir);
+        for (const entry of entries) {
+          const entryPath = path.join(dir, entry);
+          const entryStat = await fs.stat(entryPath);
+          if (entryStat.isDirectory()) {
+            const found = await scan(entryPath);
+            if (found) return found;
+          } else if (entry.endsWith('.jsonl') && entry.includes(sessionId)) {
+            return entryPath;
+          } else if (entry.endsWith('.jsonl')) {
+            try {
+              const content = await fs.readFile(entryPath, 'utf-8');
+              const firstLine = content.split('\n')[0];
+              const header = JSON.parse(firstLine) as { id?: string };
+              if (header.id === sessionId) return entryPath;
+            } catch {
+              continue;
+            }
+          }
+        }
+      } catch {
+        // directory doesn't exist
+      }
+      return null;
+    }
+    return scan(baseDir);
+  }
+
   async function deleteHostSession(
     sessionId: string,
-    agentType: 'claude-code' | 'opencode' | 'codex'
+    agentType: 'claude-code' | 'opencode' | 'codex' | 'pi'
   ): Promise<{ success: boolean; error?: string }> {
     const homeDir = os_module.homedir();
 
@@ -1421,6 +1462,20 @@ export function createRouter(ctx: RouterContext) {
           } catch {
             continue;
           }
+        }
+      } catch {
+        return { success: false, error: 'Session not found' };
+      }
+      return { success: false, error: 'Session not found' };
+    }
+
+    if (agentType === 'pi') {
+      const piSessionsDir = path.join(homeDir, '.pi', 'agent', 'sessions');
+      try {
+        const found = await findPiSessionFileOnHost(piSessionsDir, sessionId);
+        if (found) {
+          await fs.unlink(found);
+          return { success: true };
         }
       } catch {
         return { success: false, error: 'Session not found' };

@@ -149,6 +149,8 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 
 RUN curl -fsSL https://opencode.ai/install | bash || echo "OpenCode install failed; will retry on workspace start"
 
+RUN npm install -g @mariozechner/pi-coding-agent || echo "Pi install failed; will retry on workspace start"
+
 USER root
 
 # Install Tailscale

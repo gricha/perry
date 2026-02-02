@@ -16,4 +16,5 @@ export const AGENT_SESSION_PATHS = {
   claudeCode: '.claude/projects',
   opencode: '.local/share/opencode/storage',
   codex: '.codex/sessions',
+  pi: '.pi/agent/sessions',
 } as const;

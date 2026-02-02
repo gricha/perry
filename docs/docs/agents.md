@@ -13,6 +13,7 @@ perry shell myproject
 claude
 opencode
 codex
+pi
 ```
 
 ## What gets synced
@@ -20,6 +21,7 @@ codex
 - Agent credentials and configs from the host
 - `~/.claude/` and `~/.codex/` if present
 - OpenCode config plus `auth.json` and any MCP server settings
+- Pi credentials and settings from `~/.pi/agent/`
 
 Sync happens on workspace start and when you run `perry sync`.
 
@@ -31,6 +33,7 @@ The Sessions tab is a history and shortcut list. Opening a session drops you int
 
 - [OpenCode Workflow](./workflows/opencode.md)
 - [Claude Code and Codex Workflow](./workflows/claude-code.md)
+- [Pi Workflow](./workflows/pi.md)
 
 ## Perry skill
 

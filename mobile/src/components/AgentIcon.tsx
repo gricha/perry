@@ -11,6 +11,7 @@ const ICON_COLORS: Record<AgentType, { bg: string; border: string }> = {
   'claude-code': { bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.2)' },
   opencode: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.2)' },
   codex: { bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.2)' },
+  pi: { bg: 'rgba(139, 92, 246, 0.1)', border: 'rgba(139, 92, 246, 0.2)' },
 }
 
 function ClaudeIcon({ size }: { size: number }) {
@@ -52,6 +53,20 @@ function CodexIcon({ size }: { size: number }) {
   )
 }
 
+function PiIcon({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M6 7h12M9 7v10M15 7v10"
+        stroke="#8B5CF6"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  )
+}
+
 export function AgentIcon({ agentType, size = 'sm' }: AgentIconProps) {
   const containerSize = size === 'sm' ? styles.containerSm : styles.containerMd
   const iconSize = size === 'sm' ? 14 : 18
@@ -66,6 +81,7 @@ export function AgentIcon({ agentType, size = 'sm' }: AgentIconProps) {
       {agentType === 'claude-code' && <ClaudeIcon size={iconSize} />}
       {agentType === 'opencode' && <OpenCodeIcon size={iconSize} />}
       {agentType === 'codex' && <CodexIcon size={iconSize} />}
+      {agentType === 'pi' && <PiIcon size={iconSize} />}
     </View>
   )
 }

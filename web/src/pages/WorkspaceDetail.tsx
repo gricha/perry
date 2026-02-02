@@ -63,6 +63,7 @@ const AGENT_LABELS: Record<AgentType | 'all', string> = {
   'claude-code': 'Claude Code',
   opencode: 'OpenCode',
   codex: 'Codex',
+  pi: 'Pi',
 }
 
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Older'
@@ -75,6 +76,8 @@ function getAgentResumeCommand(agentType: AgentType, sessionId: string): string 
       return `opencode --session ${sessionId}`
     case 'codex':
       return `codex resume ${sessionId}`
+    case 'pi':
+      return `pi --session ${sessionId}`
   }
 }
 
@@ -86,6 +89,8 @@ function getAgentNewCommand(agentType: AgentType): string {
       return 'opencode'
     case 'codex':
       return 'codex'
+    case 'pi':
+      return 'pi'
   }
 }
 

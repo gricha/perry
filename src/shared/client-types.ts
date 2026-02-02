@@ -129,7 +129,7 @@ export type Skill = SkillDefinition;
 
 export type McpServer = McpServerDefinition;
 
-export const AGENT_TYPES = ['claude-code', 'opencode', 'codex'] as const;
+export const AGENT_TYPES = ['claude-code', 'opencode', 'codex', 'pi'] as const;
 
 export interface ModelInfo {
   id: string;
@@ -138,7 +138,7 @@ export interface ModelInfo {
   provider?: string;
 }
 
-export type AgentType = 'claude-code' | 'opencode' | 'codex';
+export type AgentType = 'claude-code' | 'opencode' | 'codex' | 'pi';
 
 export interface SessionInfo {
   id: string;

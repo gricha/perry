@@ -30,6 +30,8 @@ function getAgentResumeCommand(agentType: AgentType, sessionId: string): string 
       return `opencode --session ${sessionId}`
     case 'codex':
       return `codex resume ${sessionId}`
+    case 'pi':
+      return `pi --session ${sessionId}`
   }
 }
 
@@ -41,6 +43,8 @@ function getAgentStartCommand(agentType: AgentType): string {
       return 'opencode'
     case 'codex':
       return 'codex'
+    case 'pi':
+      return 'pi'
   }
 }
 

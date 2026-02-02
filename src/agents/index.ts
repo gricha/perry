@@ -3,10 +3,11 @@ import type { AgentType } from '../sessions/types';
 import type { AgentConfig } from '../shared/types';
 import type { Agent, AgentSyncProvider, SyncContext, SyncResult } from './types';
 import type { FileCopier } from './sync/types';
-import { claudeProvider, opencodeProvider, codexProvider } from '../sessions/agents';
+import { claudeProvider, opencodeProvider, codexProvider, piProvider } from '../sessions/agents';
 import { claudeCodeSync } from './sync/claude-code';
 import { opencodeSync } from './sync/opencode';
 import { codexSync } from './sync/codex';
+import { piSync } from './sync/pi';
 import { createDockerFileCopier } from './sync/copier';
 import { expandPath } from '../config/loader';
 import * as docker from '../docker';
@@ -26,6 +27,11 @@ export const agents: Record<AgentType, Agent> = {
     agentType: 'codex',
     sync: codexSync,
     sessions: codexProvider,
+  },
+  pi: {
+    agentType: 'pi',
+    sync: piSync,
+    sessions: piProvider,
   },
 };
 
@@ -164,6 +170,7 @@ export async function syncAllAgents(
     'claude-code': { copied: [], generated: [], skipped: [], errors: [] },
     opencode: { copied: [], generated: [], skipped: [], errors: [] },
     codex: { copied: [], generated: [], skipped: [], errors: [] },
+    pi: { copied: [], generated: [], skipped: [], errors: [] },
   };
 
   for (const [agentType, agent] of Object.entries(agents)) {
@@ -179,6 +186,7 @@ export function getCredentialFilePaths(): string[] {
     '~/.codex/auth.json',
     '~/.local/share/opencode/auth.json',
     '~/.local/share/opencode/mcp-auth.json',
+    '~/.pi/agent/auth.json',
   ];
 }
 

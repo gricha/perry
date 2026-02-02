@@ -283,6 +283,11 @@ export async function getSessionDetail(
     if (result) return result;
   }
 
+  if (!agentType || agentType === 'pi') {
+    const result = await getPiSessionDetail(sessionId, homeDir);
+    if (result) return result;
+  }
+
   return null;
 }
 
@@ -703,17 +708,148 @@ async function getCodexSessionDetail(
 }
 
 export async function listAllSessions(homeDir: string): Promise<SessionMetadata[]> {
-  const [claudeSessions, openCodeSessions, codexSessions] = await Promise.all([
+  const [claudeSessions, openCodeSessions, codexSessions, piSessions] = await Promise.all([
     listClaudeCodeSessions(homeDir),
     listOpenCodeSessions(homeDir),
     listCodexSessions(homeDir),
+    listPiSessions(homeDir),
   ]);
 
-  const allSessions = [...claudeSessions, ...openCodeSessions, ...codexSessions];
+  const allSessions = [...claudeSessions, ...openCodeSessions, ...codexSessions, ...piSessions];
 
   allSessions.sort(
     (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
   );
 
   return allSessions;
+}
+
+interface PiSessionEntry {
+  type: string;
+  id: string;
+  parentId?: string;
+  timestamp?: string;
+  role?: 'user' | 'assistant';
+  content?: string | Array<{ type: string; text?: string }>;
+  provider?: string;
+  modelId?: string;
+  sessionId?: string;
+}
+
+function parsePiLine(line: string): SessionMessage | null {
+  try {
+    const obj = JSON.parse(line) as PiSessionEntry;
+
+    if (obj.type === 'message' && (obj.role === 'user' || obj.role === 'assistant')) {
+      const textContent = extractContent(obj.content);
+      return {
+        type: obj.role,
+        content: textContent || undefined,
+        timestamp: obj.timestamp,
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function parsePiSessionFile(content: string): {
+  sessionId: string | null;
+  messages: SessionMessage[];
+} {
+  const lines = content.split('\n').filter((l) => l.trim());
+  let sessionId: string | null = null;
+  const messages: SessionMessage[] = [];
+
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line) as PiSessionEntry;
+      if (!sessionId && obj.sessionId) {
+        sessionId = obj.sessionId;
+      }
+      if (!sessionId && obj.type === 'header' && obj.id) {
+        sessionId = obj.id;
+      }
+    } catch {
+      continue;
+    }
+
+    const msg = parsePiLine(line);
+    if (msg) {
+      messages.push(msg);
+    }
+  }
+
+  return { sessionId, messages };
+}
+
+export async function listPiSessions(homeDir: string): Promise<SessionMetadata[]> {
+  const piDir = join(homeDir, '.pi', 'agent', 'sessions');
+  const sessions: SessionMetadata[] = [];
+
+  async function scanDirectory(dir: string): Promise<void> {
+    try {
+      const entries = await readdir(dir);
+
+      for (const entry of entries) {
+        const entryPath = join(dir, entry);
+        const entryStat = await stat(entryPath);
+
+        if (entryStat.isDirectory()) {
+          await scanDirectory(entryPath);
+        } else if (entry.endsWith('.jsonl')) {
+          try {
+            const content = await readFile(entryPath, 'utf-8');
+            const { sessionId, messages } = parsePiSessionFile(content);
+            const userMessages = messages.filter((m) => m.type === 'user');
+            const firstPrompt = userMessages.length > 0 ? userMessages[0].content || null : null;
+
+            const id = sessionId || basename(entry, '.jsonl');
+            const projectPath = dir.replace(piDir, '').replace(/^\//, '') || 'unknown';
+
+            sessions.push({
+              id,
+              name: null,
+              agentType: 'pi',
+              projectPath,
+              messageCount: messages.length,
+              lastActivity: entryStat.mtime.toISOString(),
+              firstPrompt: firstPrompt ? firstPrompt.slice(0, 200) : null,
+              filePath: entryPath,
+            });
+          } catch {
+            continue;
+          }
+        }
+      }
+    } catch {
+      return;
+    }
+  }
+
+  await scanDirectory(piDir);
+
+  sessions.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+
+  return sessions;
+}
+
+async function getPiSessionDetail(
+  sessionId: string,
+  homeDir: string
+): Promise<SessionDetail | null> {
+  const sessions = await listPiSessions(homeDir);
+  const session = sessions.find((s) => s.id === sessionId);
+
+  if (!session) return null;
+
+  const content = await readFile(session.filePath, 'utf-8');
+  const { messages } = parsePiSessionFile(content);
+
+  return {
+    ...session,
+    messages,
+  };
 }
