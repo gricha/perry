@@ -13,7 +13,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Agent Workflows',
-      items: ['workflows/opencode', 'workflows/claude-code'],
+      items: ['workflows/opencode', 'workflows/claude-code', 'workflows/pi'],
     },
     {
       type: 'category',
