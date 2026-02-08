@@ -3,6 +3,10 @@ version = 1
 [defaults.filters]
 ignorePaths = ["docs/**", "**/*.md", "**/*.lock", "**/*.json"]
 
+[defaults.output]
+failOn = "high"
+commentOn = "high"
+
 [[triggers]]
 name = "security-review"
 event = "pull_request"
