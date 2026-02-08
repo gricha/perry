@@ -608,9 +608,15 @@ export class WorkspaceManager {
   }
 
   private async restartOpenCodeServer(containerName: string): Promise<void> {
-    await docker.execInContainer(containerName, ['sh', '-c', 'pkill -f "opencode serve" || true'], {
-      user: 'workspace',
-    });
+    await docker.execInContainer(
+      containerName,
+      [
+        'sh',
+        '-c',
+        'pkill -f "opencode serve" || true; for i in $(seq 1 20); do pgrep -f "opencode serve" > /dev/null || break; sleep 0.25; done',
+      ],
+      { user: 'workspace' }
+    );
     await this.startOpenCodeServer(containerName);
   }
 
