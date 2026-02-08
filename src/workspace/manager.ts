@@ -607,6 +607,13 @@ export class WorkspaceManager {
     }
   }
 
+  private async restartOpenCodeServer(containerName: string): Promise<void> {
+    await docker.execInContainer(containerName, ['sh', '-c', 'pkill -f "opencode serve" || true'], {
+      user: 'workspace',
+    });
+    await this.startOpenCodeServer(containerName);
+  }
+
   private async runUserScripts(containerName: string): Promise<void> {
     const scriptPaths = this.config.scripts.post_start;
     if (!scriptPaths || scriptPaths.length === 0) {
@@ -1221,7 +1228,12 @@ export class WorkspaceManager {
       throw new Error(`Workspace '${name}' is not running`);
     }
 
-    await this.setupWorkspaceCredentials(containerName, name, { strictWorker: true });
+    await this.setupWorkspaceCredentials(containerName, name, {
+      strictWorker: true,
+      startOpenCodeServer: false,
+    });
+    await this.updateAgentBinaries(containerName);
+    await this.restartOpenCodeServer(containerName);
   }
 
   async setPortForwards(name: string, forwards: PortMapping[]): Promise<Workspace> {
