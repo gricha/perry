@@ -12,8 +12,12 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.WARDEN_ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
-      - uses: getsentry/warden@v0
         with:
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          fetch-depth: 0
+      - name: Strip newlines from OAuth token
+        run: echo "CLAUDE_CODE_OAUTH_TOKEN=$(printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN" | tr -d '\n\r\t ')" >> "$GITHUB_ENV"
+      - uses: getsentry/warden@v0
