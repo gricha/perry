@@ -1,17 +1,7 @@
 name: Mobile E2E Tests
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'mobile/**'
   workflow_dispatch:
-  schedule:
-    - cron: '0 9 * * 1'  # Monday 9am UTC
 
 jobs:
   maestro-ios:
