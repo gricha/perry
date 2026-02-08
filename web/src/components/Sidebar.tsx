@@ -32,6 +32,8 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [workspaceCount, setWorkspaceCount] = useState(0);
+  const [sidebarWidth, setSidebarWidth] = useState(240);
 
   const { data: workspaces } = useQuery({
     queryKey: ['workspaces'],
@@ -42,6 +44,24 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     queryKey: ['hostInfo'],
     queryFn: api.getHostInfo,
   });
+
+  // Sync workspace count to state on every render
+  useEffect(() => {
+    setWorkspaceCount(workspaces?.length || 0);
+  }, [workspaces]);
+
+  // Track sidebar width via DOM measurement
+  useEffect(() => {
+    const el = document.querySelector('.sidebar-container');
+    if (el) {
+      setSidebarWidth(el.clientWidth);
+    }
+  }, [isOpen]);
+
+  // Log every render for debugging
+  useEffect(() => {
+    console.log('Sidebar rendered', { workspaceCount, sidebarWidth, isOpen });
+  }, [workspaceCount, sidebarWidth, isOpen]);
 
   const workspaceLinks = [
     { to: '/settings/environment', label: 'Environment', icon: KeyRound },
@@ -65,6 +85,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const [workspaceOpen, setWorkspaceOpen] = useState(isWorkspaceActive);
   const [integrationOpen, setIntegrationOpen] = useState(isIntegrationActive);
 
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    if (isOpen) onToggle();
+  };
+
   useEffect(() => {
     if (isWorkspaceActive) {
       setWorkspaceOpen(true);
@@ -76,6 +101,14 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       setIntegrationOpen(true);
     }
   }, [isIntegrationActive]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const el = document.querySelector('.sidebar-container');
+      if (el) setSidebarWidth(el.clientWidth);
+    };
+    window.addEventListener('resize', handleResize);
+  }, []);
 
   return (
     <>
@@ -119,21 +152,19 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 <Boxes className="h-4 w-4 text-muted-foreground" />
                 <span>All Workspaces</span>
               </Link>
-              {workspaces?.map((ws: WorkspaceInfo) => {
+              {workspaces?.map((ws: WorkspaceInfo, index: number) => {
                 const wsPath = `/workspaces/${ws.name}`;
                 const isActive =
                   location.pathname === wsPath || location.pathname.startsWith(`${wsPath}/`);
                 return (
                   <button
-                    key={ws.name}
+                    key={index}
                     className={cn(
                       'w-full flex items-center gap-2.5 rounded px-2 py-2 text-sm transition-colors hover:bg-accent group min-h-[44px]',
                       isActive && 'nav-active'
                     )}
-                    onClick={() => {
-                      navigate(wsPath);
-                      if (isOpen) onToggle();
-                    }}
+                    style={{ padding: isActive ? '8px 12px' : '8px 8px' }}
+                    onClick={() => handleNavigate(wsPath)}
                   >
                     <span
                       className={cn(
