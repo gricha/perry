@@ -30,6 +30,7 @@ type = "local"
 [[skills]]
 name = "linter-rule-judge"
 phase = 2
+reportOn = "low"
 
 [[skills.triggers]]
 type = "pull_request"
