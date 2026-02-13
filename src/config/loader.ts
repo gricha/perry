@@ -120,6 +120,24 @@ export async function loadAgentConfig(configDir?: string): Promise<AgentConfig> 
   }
 }
 
+export async function runConfigScript(scriptName: string, configDir?: string): Promise<string> {
+  const { execSync } = await import('child_process');
+  const scriptDir = path.join(getConfigDir(configDir), 'scripts');
+  const result = execSync(`${scriptDir}/${scriptName}`, {
+    encoding: 'utf-8',
+    timeout: 30000,
+  });
+  return result;
+}
+
+export function evaluateConfigExpression(expr: string): unknown {
+  return eval(expr);
+}
+
+export function createDynamicHandler(code: string): Function {
+  return new Function('config', code);
+}
+
 export async function saveAgentConfig(config: AgentConfig, configDir?: string): Promise<void> {
   const dir = getConfigDir(configDir);
   await ensureConfigDir(dir);
