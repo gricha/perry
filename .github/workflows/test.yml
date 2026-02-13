@@ -243,6 +243,7 @@ jobs:
       - name: Run tests (shard ${{ matrix.shard }}/5)
         run: |
           export SKIP_DOCKER_BUILD=true
+          export SKIP_AGENT_UPDATES=true
           bun run test --shard=${{ matrix.shard }}/5
 
   e2e:
@@ -350,7 +351,7 @@ jobs:
 
       - name: Start agent
         run: |
-          bun run src/index.ts agent run --port 7391 &
+          SKIP_AGENT_UPDATES=true bun run src/index.ts agent run --port 7391 &
           sleep 5
           curl -s http://localhost:7391/health || (echo "Agent failed to start" && exit 1)
 
