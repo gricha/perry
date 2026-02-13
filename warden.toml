@@ -1,34 +1,40 @@
 version = 1
 
-[defaults.filters]
+[defaults]
 ignorePaths = ["docs/**", "**/*.md", "**/*.lock", "**/*.json"]
 
-[[triggers]]
+[[skills]]
 name = "security-review"
-event = "pull_request"
-actions = ["opened", "synchronize", "reopened"]
-skill = "security-review"
+paths = ["src/**", "web/**", "mobile/**"]
 remote = "getsentry/skills"
 
-[triggers.filters]
-paths = ["src/**", "web/**", "mobile/**"]
-
-[[triggers]]
-name = "react-best-practices"
-event = "pull_request"
+[[skills.triggers]]
+type = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
-skill = "vercel-react-best-practices"
+
+[[skills.triggers]]
+type = "local"
+
+[[skills]]
+name = "react-best-practices"
+paths = ["**/*.tsx", "**/*.jsx"]
 remote = "vercel-labs/agent-skills"
 
-[triggers.filters]
-paths = ["**/*.tsx", "**/*.jsx"]
-
-[[triggers]]
-name = "code-simplifier"
-event = "pull_request"
+[[skills.triggers]]
+type = "pull_request"
 actions = ["opened", "synchronize", "reopened"]
-skill = "code-simplifier"
+
+[[skills.triggers]]
+type = "local"
+
+[[skills]]
+name = "code-simplifier"
+paths = ["src/**", "web/**", "mobile/**"]
 remote = "getsentry/skills"
 
-[triggers.filters]
-paths = ["src/**", "web/**", "mobile/**"]
+[[skills.triggers]]
+type = "pull_request"
+actions = ["opened", "synchronize", "reopened"]
+
+[[skills.triggers]]
+type = "local"
