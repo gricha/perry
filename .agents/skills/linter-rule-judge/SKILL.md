@@ -60,16 +60,16 @@ Return an empty findings array when nothing qualifies. That's the expected commo
 
 ## Output format
 
+**Do NOT set a `location` field.** These findings target linter config and plugin files, not the source code where the original issue was found. Omitting location ensures they appear as top-level review comments, not inline on unrelated source lines.
+
 For existing rules:
 - **title**: The rule name (e.g., `no-eval`)
 - **severity**: `low`
 - **description**: One sentence: what AST pattern it matches
-- **suggestedFix**: A diff enabling the rule in the project's linter config
-- **location**: Same as the original finding
+- **suggestedFix**: A diff enabling the rule in the project's linter config file
 
 For custom rules:
 - **title**: `custom: <rule-name>` (e.g., `custom: no-execsync-interpolation`)
 - **severity**: `low`
 - **description**: One sentence: what AST pattern it matches
 - **suggestedFix**: The complete rule implementation file AND the config diff to wire it up. Match the conventions of existing custom rules in the project.
-- **location**: Same as the original finding
