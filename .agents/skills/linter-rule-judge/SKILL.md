@@ -60,9 +60,11 @@ Return an empty findings array when nothing qualifies. That's the expected commo
 
 ## Output format
 
+**Set the report `summary`** to a short framing paragraph. This appears as a header on the PR comment. It should explain that these are long-term improvements the developer can adopt, and suggest prompting a local agent to apply them. Example: "Warden identified lint rules that could permanently catch patterns flagged in this review. To apply, prompt your local agent with the instructions below, or run `warden --fix` locally."
+
 **Do NOT set a `location` field.** These findings target linter config and plugin files, not the source code where the original issue was found. Omitting location ensures they appear as top-level review comments, not inline on unrelated source lines.
 
-**The `description` is the primary output.** It must be self-contained and actionable: tell the developer exactly what to do, which config file to change, and what rule to enable or create. Write it so someone reading a PR comment knows the next step without seeing the diff. Example: "Enable the `no-eval` rule in `.oxlintrc.json` under `rules` to ban all `eval()` calls. Run `warden --fix` locally to apply."
+**The `description` is the primary output.** It must be self-contained and actionable: tell the developer exactly what to do, which config file to change, and what rule to enable or create. Write it so someone reading a PR comment knows the next step without seeing the diff. Example: "Enable the `no-eval` rule in `.oxlintrc.json` under `rules` to ban all `eval()` calls."
 
 The `suggestedFix` carries the machine-readable diff for local application via `warden --fix`. It is not shown in PR comments.
 
