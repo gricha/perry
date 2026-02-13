@@ -3,28 +3,6 @@
 # Minimal image with Perry runtime, coding agents, and essential tools.
 # Users can extend this with their own language runtimes and tools.
 
-# Stage 1: Build Neovim from source
-FROM ubuntu:noble AS neovim-builder
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    ninja-build \
-    gettext \
-    cmake \
-    build-essential \
-    curl \
-    ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
-RUN git clone --depth 1 --branch v0.11.4 https://github.com/neovim/neovim.git /tmp/neovim \
-  && cd /tmp/neovim \
-  && make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=/usr/local \
-  && make install \
-  && rm -rf /tmp/neovim
-
-# Stage 2: Final image
 FROM ubuntu:noble
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -72,10 +50,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fzf \
   && rm -rf /var/lib/apt/lists/*
 
-# Copy Neovim from builder stage
-COPY --from=neovim-builder /usr/local/bin/nvim /usr/local/bin/nvim
-COPY --from=neovim-builder /usr/local/lib/nvim /usr/local/lib/nvim
-COPY --from=neovim-builder /usr/local/share/nvim /usr/local/share/nvim
+# Install Neovim from official prebuilt binary
+RUN curl -fsSL https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.tar.gz \
+    | tar -xz -C /opt \
+  && ln -s /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
 
 # Install GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg \

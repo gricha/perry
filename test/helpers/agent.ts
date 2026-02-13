@@ -344,6 +344,7 @@ export async function startTestAgent(options: TestAgentOptions = {}): Promise<Te
       ...process.env,
       PERRY_CONFIG_DIR: configDir,
       PERRY_PORT: String(port),
+      SKIP_AGENT_UPDATES: 'true',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

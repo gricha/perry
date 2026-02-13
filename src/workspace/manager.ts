@@ -374,6 +374,10 @@ export class WorkspaceManager {
   }
 
   private async updateAgentBinaries(containerName: string): Promise<void> {
+    if (process.env.SKIP_AGENT_UPDATES === 'true') {
+      return;
+    }
+
     const updates = [
       {
         name: 'claude',
