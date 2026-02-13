@@ -124,33 +124,42 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:3
+        ports:
+          - 5000:5000
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          driver: docker
+          driver-opts: network=host
 
       - name: Build base image
         uses: docker/build-push-action@v6
         with:
           context: ./perry
           file: ./perry/Dockerfile.base
-          load: true
-          tags: perry-base:latest
+          push: true
+          tags: localhost:5000/perry-base:latest
+          cache-from: type=gha,scope=perry-base
+          cache-to: type=gha,scope=perry-base,mode=max
 
       - name: Build full image
         uses: docker/build-push-action@v6
         with:
           context: ./perry
-          load: true
           tags: perry:latest
           build-args: |
-            BASE_IMAGE=perry-base:latest
+            BASE_IMAGE=localhost:5000/perry-base:latest
+          cache-from: type=gha,scope=perry-full
+          cache-to: type=gha,scope=perry-full,mode=max
+          outputs: type=docker,dest=perry-image.tar
 
-      - name: Save Docker image
-        run: docker save perry:latest | gzip > perry-image.tar.gz
+      - name: Compress Docker image
+        run: gzip perry-image.tar
 
       - name: Upload Docker image
         uses: actions/upload-artifact@v4
