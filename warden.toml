@@ -28,8 +28,9 @@ actions = ["opened", "synchronize", "reopened"]
 type = "local"
 
 [[skills]]
-name = "linter-rule-judge"
-phase = 2
+name = "warden-lint-judge"
+remote = "getsentry/skills"
+scope = "report"
 reportOn = "low"
 
 [[skills.triggers]]
