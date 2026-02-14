@@ -1289,7 +1289,6 @@ export function createRouter(ctx: RouterContext) {
     const safeQuery = query.replace(/['"\\]/g, '\\$&');
     const searchPaths = [
       path.join(homeDir, '.claude', 'projects'),
-      path.join(homeDir, '.local', 'share', 'opencode', 'storage'),
       path.join(homeDir, '.codex', 'sessions'),
       path.join(homeDir, '.pi', 'agent', 'sessions'),
     ].filter((p) => {
@@ -1332,14 +1331,6 @@ export function createRouter(ctx: RouterContext) {
           if (match && !match[1].startsWith('agent-')) {
             sessionId = match[1];
             agentType = 'claude-code';
-          }
-        } else if (file.includes('/.local/share/opencode/storage/')) {
-          if (file.includes('/session/') && file.endsWith('.json')) {
-            const match = file.match(/\/(ses_[^/]+)\.json$/);
-            if (match) {
-              sessionId = match[1];
-              agentType = 'opencode';
-            }
           }
         } else if (file.includes('/.codex/sessions/')) {
           const match = file.match(/\/([^/]+)\.jsonl$/);

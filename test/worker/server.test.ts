@@ -102,13 +102,20 @@ EOF`,
 
   it('discovers OpenCode sessions with message counts', async () => {
     const sessionId = 'ses_test123';
+    const now = Date.now();
+    const seedScript = `
+      const{Database}=require("bun:sqlite");
+      const db=new Database(process.env.HOME+"/.local/share/opencode/opencode.db");
+      db.run("CREATE TABLE IF NOT EXISTS session(id TEXT PRIMARY KEY,title TEXT,directory TEXT,time_created INTEGER,time_updated INTEGER)");
+      db.run("CREATE TABLE IF NOT EXISTS message(id TEXT PRIMARY KEY,session_id TEXT,time_created INTEGER,time_updated INTEGER,data TEXT)");
+      db.query("INSERT INTO session VALUES(?,?,?,?,?)").run("${sessionId}","Test OpenCode Session","/home/workspace",${now},${now});
+      db.query("INSERT INTO message VALUES(?,?,?,?,?)").run("msg_1","${sessionId}",${now},${now},JSON.stringify({role:"user"}));
+      db.query("INSERT INTO message VALUES(?,?,?,?,?)").run("msg_2","${sessionId}",${now + 1},${now + 1},JSON.stringify({role:"assistant"}));
+      db.close();
+    `.replace(/\n\s*/g, '');
     await execInWorkspace(
       containerName,
-      `mkdir -p ~/.local/share/opencode/storage/session/global && \
-       mkdir -p ~/.local/share/opencode/storage/message/${sessionId} && \
-       echo '{"id":"${sessionId}","title":"Test OpenCode Session","directory":"/home/workspace"}' > ~/.local/share/opencode/storage/session/global/${sessionId}.json && \
-       echo '{"id":"msg_1","role":"user"}' > ~/.local/share/opencode/storage/message/${sessionId}/msg_1.json && \
-       echo '{"id":"msg_2","role":"assistant"}' > ~/.local/share/opencode/storage/message/${sessionId}/msg_2.json`,
+      `mkdir -p ~/.local/share/opencode && bun -e '${seedScript}'`,
       { user: 'workspace' }
     );
 

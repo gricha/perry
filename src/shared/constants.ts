@@ -14,7 +14,7 @@ export const CONTAINER_PREFIX = 'workspace-';
 
 export const AGENT_SESSION_PATHS = {
   claudeCode: '.claude/projects',
-  opencode: '.local/share/opencode/storage',
+  opencode: '.local/share/opencode',
   codex: '.codex/sessions',
   pi: '.pi/agent/sessions',
 } as const;

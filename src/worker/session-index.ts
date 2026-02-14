@@ -46,18 +46,9 @@ class SessionIndex {
 
   startWatchers(): void {
     const claudeDir = path.join(os.homedir(), '.claude', 'projects');
-    const opencodeDir = path.join(
-      os.homedir(),
-      '.local',
-      'share',
-      'opencode',
-      'storage',
-      'session'
-    );
     const piDir = path.join(os.homedir(), '.pi', 'agent', 'sessions');
 
     this.watchDirectory(claudeDir, 'claude');
-    this.watchDirectory(opencodeDir, 'opencode');
     this.watchDirectory(piDir, 'pi');
   }
 
@@ -110,7 +101,7 @@ class SessionIndex {
         await fs.unlink(session.filePath);
       } else {
         const { deleteOpencodeSession } = await import('../sessions/agents/opencode-storage');
-        const result = await deleteOpencodeSession(id);
+        const result = deleteOpencodeSession(id);
         if (!result.success) {
           return result;
         }
@@ -158,7 +149,7 @@ class SessionIndex {
   private async discoverOpencodeSessions(): Promise<void> {
     try {
       const { listOpencodeSessions } = await import('../sessions/agents/opencode-storage');
-      const sessions = await listOpencodeSessions();
+      const sessions = listOpencodeSessions();
 
       for (const session of sessions) {
         this.sessions.set(session.id, {
@@ -166,7 +157,7 @@ class SessionIndex {
           agentType: 'opencode',
           title: session.title,
           directory: session.directory,
-          filePath: session.file,
+          filePath: '',
           messageCount: session.messageCount,
           firstPrompt: session.title || null,
           lastActivity: session.mtime,
@@ -228,7 +219,7 @@ class SessionIndex {
     }
   }
 
-  private watchDirectory(dir: string, agentType: 'claude' | 'opencode' | 'pi'): void {
+  private watchDirectory(dir: string, agentType: 'claude' | 'pi'): void {
     try {
       const watcher = watch(dir, { recursive: true }, (event, filename) => {
         if (!filename) return;
@@ -258,7 +249,7 @@ class SessionIndex {
   private async handleFileChange(
     baseDir: string,
     filename: string,
-    agentType: 'claude' | 'opencode' | 'pi'
+    agentType: 'claude' | 'pi'
   ): Promise<void> {
     const filePath = path.join(baseDir, filename);
 
@@ -273,7 +264,7 @@ class SessionIndex {
         const sessionId = path.basename(filename, '.jsonl');
         this.sessions.delete(sessionId);
       }
-    } else if (agentType === 'pi') {
+    } else {
       if (!filename.endsWith('.jsonl')) return;
 
       try {
@@ -285,14 +276,6 @@ class SessionIndex {
         const idParts = basename.split('_');
         const sessionId = idParts.length > 1 ? idParts[idParts.length - 1] : basename;
         this.sessions.delete(sessionId);
-      }
-    } else {
-      if (!filename.endsWith('.json') || !filename.includes('ses_')) return;
-
-      try {
-        await this.discoverOpencodeSessions();
-      } catch {
-        // Re-discovery failed
       }
     }
   }
@@ -400,7 +383,7 @@ class SessionIndex {
   ): Promise<{ id: string; messages: Message[]; total: number }> {
     try {
       const { getOpencodeSessionMessages } = await import('../sessions/agents/opencode-storage');
-      const result = await getOpencodeSessionMessages(session.id);
+      const result = getOpencodeSessionMessages(session.id);
 
       const total = result.messages.length;
       const startIndex = Math.max(0, total - opts.offset - opts.limit);
