@@ -16,9 +16,21 @@ actions = ["opened", "synchronize", "reopened"]
 type = "local"
 
 [[skills]]
-name = "react-best-practices"
+name = "vercel-react-best-practices"
 paths = ["**/*.tsx", "**/*.jsx"]
 remote = "vercel-labs/agent-skills"
+
+[[skills.triggers]]
+type = "pull_request"
+actions = ["opened", "synchronize", "reopened"]
+
+[[skills.triggers]]
+type = "local"
+
+[[skills]]
+name = "find-bugs"
+paths = ["src/**", "web/**", "mobile/**"]
+remote = "getsentry/skills"
 
 [[skills.triggers]]
 type = "pull_request"
