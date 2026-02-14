@@ -45,11 +45,13 @@ agentCmd
   .command('run')
   .description('Start the agent daemon')
   .option('-p, --port <port>', 'Port to listen on', parseInt)
+  .option('--host <host>', 'Host to bind to')
   .option('-c, --config-dir <dir>', 'Configuration directory')
   .option('--no-host-access', 'Disable direct host machine access')
   .action(async (options) => {
     await startAgent({
       port: options.port,
+      host: options.host,
       configDir: options.configDir,
       noHostAccess: options.hostAccess === false,
     });

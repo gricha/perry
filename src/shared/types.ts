@@ -108,6 +108,7 @@ export interface McpServerDefinition {
 
 export interface AgentConfig {
   port: number;
+  host?: string;
   credentials: WorkspaceCredentials;
   scripts: WorkspaceScripts;
   agents?: CodingAgents;
