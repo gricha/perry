@@ -132,6 +132,7 @@ export function deleteOpencodeSession(
 ): { success: boolean; error?: string } {
   try {
     withDb(homeDir, false, (db) => {
+      db.run('PRAGMA foreign_keys = ON');
       db.query(`DELETE FROM session WHERE id = ?`).run(sessionId);
     });
     return { success: true };
