@@ -108,7 +108,6 @@ export async function searchSessions(
 
   const searchPaths = [
     '/home/workspace/.claude/projects',
-    '/home/workspace/.local/share/opencode/storage',
     '/home/workspace/.codex/sessions',
     '/home/workspace/.pi/agent/sessions',
   ];
@@ -135,16 +134,6 @@ export async function searchSessions(
       if (match && !match[1].startsWith('agent-')) {
         sessionId = match[1];
         agentType = 'claude-code';
-      }
-    } else if (file.includes('/.local/share/opencode/storage/')) {
-      if (file.includes('/session/') && file.endsWith('.json')) {
-        const match = file.match(/\/(ses_[^/]+)\.json$/);
-        if (match) {
-          sessionId = match[1];
-          agentType = 'opencode';
-        }
-      } else if (file.includes('/part/') || file.includes('/message/')) {
-        continue;
       }
     } else if (file.includes('/.codex/sessions/')) {
       const match = file.match(/\/([^/]+)\.jsonl$/);
