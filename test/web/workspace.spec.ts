@@ -65,7 +65,11 @@ test.describe('Web UI - Workspace Operations', () => {
 });
 
 test.describe('Web UI - Create Workspace', () => {
-  test('create workspace form shows name and repo inputs', async ({ agent, workspaceName, page }) => {
+  test('create workspace form shows name and repo inputs', async ({
+    agent,
+    workspaceName,
+    page,
+  }) => {
     await page.goto(`http://127.0.0.1:${agent.port}/workspaces`);
     await page.waitForLoadState('networkidle');
 
@@ -134,7 +138,11 @@ test.describe('Web UI - Terminal', () => {
     await page.waitForTimeout(1000);
   });
 
-  test('can navigate directly to terminal via tab param', async ({ agent, workspaceName, page }) => {
+  test('can navigate directly to terminal via tab param', async ({
+    agent,
+    workspaceName,
+    page,
+  }) => {
     await page.goto(`http://127.0.0.1:${agent.port}/workspaces/${workspaceName}?tab=terminal`);
 
     const terminalScreen = page.locator('[data-testid="terminal-screen"]');
@@ -184,7 +192,11 @@ test.describe('Web UI - Sessions', () => {
     });
   });
 
-  test('sessions list shows prompt and clicking opens terminal', async ({ agent, workspaceName, page }) => {
+  test('sessions list shows prompt and clicking opens terminal', async ({
+    agent,
+    workspaceName,
+    page,
+  }) => {
     const sessionId = `test-session-${Date.now()}`;
     const filePath = `/home/workspace/.claude/projects/-workspace/${sessionId}.jsonl`;
     const sessionContent = [
@@ -210,7 +222,11 @@ test.describe('Web UI - Sessions', () => {
     await expect(page.locator('[data-testid="terminal-screen"]')).toBeVisible();
   });
 
-  test('clicking session opens terminal with resume command', async ({ agent, workspaceName, page }) => {
+  test('clicking session opens terminal with resume command', async ({
+    agent,
+    workspaceName,
+    page,
+  }) => {
     const sessionId = `history-test-${Date.now()}`;
     const filePath = `/home/workspace/.claude/projects/-workspace/${sessionId}.jsonl`;
     const sessionContent = [
@@ -246,7 +262,11 @@ test.describe('Web UI - Sessions', () => {
     await expect(page.locator('[data-testid="terminal-screen"]')).toBeVisible();
   });
 
-  test('resuming session from project folder opens terminal', async ({ agent, workspaceName, page }) => {
+  test('resuming session from project folder opens terminal', async ({
+    agent,
+    workspaceName,
+    page,
+  }) => {
     const sessionId = `project-path-test-${Date.now()}`;
     const projectDir = '-home-workspace-myproject';
     const filePath = `/home/workspace/.claude/projects/${projectDir}/${sessionId}.jsonl`;
