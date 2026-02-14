@@ -47,7 +47,6 @@ Perry is a distributed development environment orchestrator using Docker-in-Dock
 ## Constraints
 
 - No CLI command additions without approval
-- No pre-commit hooks (CI handles validation)
 - No complex bash in docker exec (use TypeScript)
 - No skipping failing tests
 - Use SSH for user interaction (not `docker exec`)
