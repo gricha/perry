@@ -1,13 +1,12 @@
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { Database } from 'bun:sqlite';
 
 export interface OpencodeSessionInfo {
   id: string;
   title: string;
   directory: string;
   mtime: number;
-  file: string;
   messageCount: number;
 }
 
@@ -25,249 +24,167 @@ export interface OpencodeSessionMessages {
   messages: OpencodeMessage[];
 }
 
-function getStorageBase(homeDir?: string): string {
+function getDbPath(homeDir?: string): string {
   const home = homeDir || os.homedir();
-  return path.join(home, '.local', 'share', 'opencode', 'storage');
+  return path.join(home, '.local', 'share', 'opencode', 'opencode.db');
 }
 
-export async function listOpencodeSessions(homeDir?: string): Promise<OpencodeSessionInfo[]> {
-  const storageBase = getStorageBase(homeDir);
-  const sessionDir = path.join(storageBase, 'session');
-  const messageDir = path.join(storageBase, 'message');
-  const sessions: OpencodeSessionInfo[] = [];
-
+function withDb<T>(homeDir: string | undefined, readonly: boolean, fn: (db: Database) => T): T {
+  const db = new Database(getDbPath(homeDir), { readonly });
   try {
-    const projectDirs = await fs.readdir(sessionDir, { withFileTypes: true });
-
-    for (const projectDir of projectDirs) {
-      if (!projectDir.isDirectory()) continue;
-
-      const projectPath = path.join(sessionDir, projectDir.name);
-      const sessionFiles = await fs.readdir(projectPath);
-
-      for (const sessionFile of sessionFiles) {
-        if (!sessionFile.startsWith('ses_') || !sessionFile.endsWith('.json')) continue;
-
-        const filePath = path.join(projectPath, sessionFile);
-        try {
-          const stat = await fs.stat(filePath);
-          const content = await fs.readFile(filePath, 'utf-8');
-          const data = JSON.parse(content);
-
-          if (!data.id) continue;
-
-          let messageCount = 0;
-          try {
-            const msgDir = path.join(messageDir, data.id);
-            const msgFiles = await fs.readdir(msgDir);
-            messageCount = msgFiles.filter(
-              (f) => f.startsWith('msg_') && f.endsWith('.json')
-            ).length;
-          } catch {
-            // No messages directory
-          }
-
-          sessions.push({
-            id: data.id,
-            title: data.title || '',
-            directory: data.directory || '',
-            mtime: data.time?.updated || Math.floor(stat.mtimeMs),
-            file: filePath,
-            messageCount,
-          });
-        } catch {
-          continue;
-        }
-      }
-    }
-  } catch {
-    // Storage doesn't exist
+    return fn(db);
+  } finally {
+    db.close();
   }
-
-  return sessions;
 }
 
-export async function getOpencodeSessionMessages(
+export function listOpencodeSessions(homeDir?: string): OpencodeSessionInfo[] {
+  try {
+    return withDb(homeDir, true, (db) => {
+      const rows = db
+        .query<
+          {
+            id: string;
+            title: string;
+            directory: string;
+            time_updated: number;
+            message_count: number;
+          },
+          []
+        >(
+          `SELECT s.id, s.title, s.directory, s.time_updated,
+                  COUNT(m.id) as message_count
+           FROM session s
+           LEFT JOIN message m ON m.session_id = s.id
+           GROUP BY s.id`
+        )
+        .all();
+
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title || '',
+        directory: row.directory || '',
+        mtime: row.time_updated || 0,
+        messageCount: row.message_count,
+      }));
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function getOpencodeSessionMessages(
   sessionId: string,
   homeDir?: string
-): Promise<OpencodeSessionMessages> {
-  const storageBase = getStorageBase(homeDir);
-  const sessionDir = path.join(storageBase, 'session');
-  const messageDir = path.join(storageBase, 'message');
-  const partDir = path.join(storageBase, 'part');
-
-  const sessionFile = await findSessionFile(sessionDir, sessionId);
-  if (!sessionFile) {
-    return { id: sessionId, messages: [] };
-  }
-
-  let internalId: string;
+): OpencodeSessionMessages {
   try {
-    const content = await fs.readFile(sessionFile, 'utf-8');
-    const data = JSON.parse(content);
-    internalId = data.id;
-    if (!internalId) {
-      return { id: sessionId, messages: [] };
-    }
-  } catch {
-    return { id: sessionId, messages: [] };
-  }
+    return withDb(homeDir, true, (db) => {
+      const msgRows = db
+        .query<{ id: string; data: string; time_created: number }, [string]>(
+          `SELECT id, data, time_created FROM message WHERE session_id = ? ORDER BY time_created`
+        )
+        .all(sessionId);
 
-  const msgDir = path.join(messageDir, internalId);
-  const messages: OpencodeMessage[] = [];
+      const partRows = db
+        .query<{ message_id: string; data: string }, [string]>(
+          `SELECT message_id, data FROM part WHERE session_id = ? ORDER BY message_id, id`
+        )
+        .all(sessionId);
 
-  try {
-    const msgFiles = (await fs.readdir(msgDir))
-      .filter((f) => f.startsWith('msg_') && f.endsWith('.json'))
-      .sort();
-
-    for (const msgFile of msgFiles) {
-      const msgPath = path.join(msgDir, msgFile);
-      try {
-        const content = await fs.readFile(msgPath, 'utf-8');
-        const msg = JSON.parse(content);
-
-        if (!msg.id || (msg.role !== 'user' && msg.role !== 'assistant')) continue;
-
-        const partMsgDir = path.join(partDir, msg.id);
-        try {
-          const partFiles = (await fs.readdir(partMsgDir))
-            .filter((f) => f.startsWith('prt_') && f.endsWith('.json'))
-            .sort();
-
-          for (const partFile of partFiles) {
-            const partPath = path.join(partMsgDir, partFile);
-            try {
-              const partContent = await fs.readFile(partPath, 'utf-8');
-              const part = JSON.parse(partContent);
-              const timestamp = msg.time?.created
-                ? new Date(msg.time.created).toISOString()
-                : undefined;
-
-              if (part.type === 'text' && part.text) {
-                messages.push({
-                  type: msg.role,
-                  content: part.text,
-                  timestamp,
-                });
-              } else if (part.type === 'tool') {
-                const toolName = part.state?.title || part.tool || '';
-                const callId = part.callID || part.id || '';
-
-                messages.push({
-                  type: 'tool_use',
-                  toolName,
-                  toolId: callId,
-                  toolInput: part.state?.input ? JSON.stringify(part.state.input) : '',
-                  timestamp,
-                });
-
-                if (part.state?.output) {
-                  messages.push({
-                    type: 'tool_result',
-                    content: part.state.output,
-                    toolId: callId,
-                    timestamp,
-                  });
-                }
-              }
-            } catch {
-              continue;
-            }
-          }
-        } catch {
-          continue;
+      const partsByMessage = new Map<string, string[]>();
+      for (const part of partRows) {
+        const list = partsByMessage.get(part.message_id);
+        if (list) {
+          list.push(part.data);
+        } else {
+          partsByMessage.set(part.message_id, [part.data]);
         }
-      } catch {
-        continue;
       }
-    }
-  } catch {
-    // No messages
-  }
 
-  return { id: sessionId, messages };
+      const messages: OpencodeMessage[] = [];
+
+      for (const msg of msgRows) {
+        const msgData = safeParse<{ role?: string }>(msg.data);
+        if (!msgData) continue;
+        if (msgData.role !== 'user' && msgData.role !== 'assistant') continue;
+
+        const role = msgData.role;
+        const timestamp = msg.time_created ? new Date(msg.time_created).toISOString() : undefined;
+
+        const partDataList = partsByMessage.get(msg.id) ?? [];
+        for (const raw of partDataList) {
+          const parsed = safeParse<PartData>(raw);
+          if (!parsed) continue;
+          messages.push(...convertPart(parsed, role, timestamp));
+        }
+      }
+
+      return { id: sessionId, messages };
+    });
+  } catch {
+    return { id: sessionId, messages: [] };
+  }
 }
 
-async function findSessionFile(sessionDir: string, sessionId: string): Promise<string | null> {
-  try {
-    const projectDirs = await fs.readdir(sessionDir, { withFileTypes: true });
-
-    for (const projectDir of projectDirs) {
-      if (!projectDir.isDirectory()) continue;
-
-      const filePath = path.join(sessionDir, projectDir.name, `${sessionId}.json`);
-      try {
-        await fs.access(filePath);
-        return filePath;
-      } catch {
-        continue;
-      }
-    }
-  } catch {
-    // Directory doesn't exist
-  }
-
-  return null;
-}
-
-export async function deleteOpencodeSession(
+export function deleteOpencodeSession(
   sessionId: string,
   homeDir?: string
-): Promise<{ success: boolean; error?: string }> {
-  const storageBase = getStorageBase(homeDir);
-  const sessionDir = path.join(storageBase, 'session');
-  const messageDir = path.join(storageBase, 'message');
-  const partDir = path.join(storageBase, 'part');
-
-  const sessionFile = await findSessionFile(sessionDir, sessionId);
-  if (!sessionFile) {
-    return { success: false, error: 'Session not found' };
-  }
-
-  let internalId: string | null = null;
+): { success: boolean; error?: string } {
   try {
-    const content = await fs.readFile(sessionFile, 'utf-8');
-    const data = JSON.parse(content);
-    internalId = data.id;
-  } catch {
-    // Continue with session file deletion only
-  }
-
-  try {
-    await fs.unlink(sessionFile);
+    withDb(homeDir, false, (db) => {
+      db.query(`DELETE FROM session WHERE id = ?`).run(sessionId);
+    });
+    return { success: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { success: false, error: `Failed to delete session file: ${message}` };
+    return { success: false, error: `Failed to delete session: ${message}` };
+  }
+}
+
+interface PartData {
+  type?: string;
+  text?: string;
+  tool?: string;
+  callID?: string;
+  id?: string;
+  state?: { title?: string; input?: unknown; output?: string };
+}
+
+function safeParse<T>(json: string): T | null {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
+}
+
+function convertPart(part: PartData, role: string, timestamp?: string): OpencodeMessage[] {
+  if (part.type === 'text' && part.text) {
+    return [{ type: role, content: part.text, timestamp }];
   }
 
-  if (internalId) {
-    const msgDir = path.join(messageDir, internalId);
-    try {
-      const msgFiles = await fs.readdir(msgDir);
-      for (const msgFile of msgFiles) {
-        if (!msgFile.startsWith('msg_') || !msgFile.endsWith('.json')) continue;
-        const msgPath = path.join(msgDir, msgFile);
-        try {
-          const content = await fs.readFile(msgPath, 'utf-8');
-          const msg = JSON.parse(content);
-          if (msg.id) {
-            const partMsgDir = path.join(partDir, msg.id);
-            try {
-              await fs.rm(partMsgDir, { recursive: true });
-            } catch {
-              // Parts may not exist
-            }
-          }
-        } catch {
-          // Skip malformed messages
-        }
-      }
-      await fs.rm(msgDir, { recursive: true });
-    } catch {
-      // Messages directory may not exist
-    }
+  if (part.type !== 'tool') return [];
+
+  const toolName = part.state?.title || part.tool || '';
+  const toolId = part.callID || part.id || '';
+  const messages: OpencodeMessage[] = [
+    {
+      type: 'tool_use',
+      toolName,
+      toolId,
+      toolInput: part.state?.input ? JSON.stringify(part.state.input) : '',
+      timestamp,
+    },
+  ];
+
+  if (part.state?.output) {
+    messages.push({
+      type: 'tool_result',
+      content: part.state.output,
+      toolId,
+      timestamp,
+    });
   }
 
-  return { success: true };
+  return messages;
 }

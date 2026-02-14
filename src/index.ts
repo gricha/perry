@@ -1272,21 +1272,21 @@ workerCmd
       await import('./sessions/agents/opencode-storage');
 
     if (subcommand === 'list') {
-      const sessions = await listOpencodeSessions();
+      const sessions = listOpencodeSessions();
       console.log(JSON.stringify(sessions));
     } else if (subcommand === 'messages') {
       if (!sessionId) {
         console.error('Usage: perry worker sessions messages <session_id>');
         process.exit(1);
       }
-      const result = await getOpencodeSessionMessages(sessionId);
+      const result = getOpencodeSessionMessages(sessionId);
       console.log(JSON.stringify(result));
     } else if (subcommand === 'delete') {
       if (!sessionId) {
         console.error('Usage: perry worker sessions delete <session_id>');
         process.exit(1);
       }
-      const result = await deleteOpencodeSession(sessionId);
+      const result = deleteOpencodeSession(sessionId);
       console.log(JSON.stringify(result));
     } else {
       console.error(`Unknown subcommand: ${subcommand}`);
