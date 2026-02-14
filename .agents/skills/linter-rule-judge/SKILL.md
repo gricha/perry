@@ -1,6 +1,6 @@
 ---
 name: linter-rule-judge
-description: Warden identified lint rules that could permanently catch patterns flagged in this review. To apply, prompt your local agent with the instructions below or run `warden --fix` locally.
+description: Warden identified lint rules that could permanently catch patterns flagged in this review. These target linter config and plugin files outside this PR, so GitHub can't propose them as inline suggestions. To apply, copy the prompt for each rule below to your local coding agent, or run `warden --fix` locally.
 allowed-tools: Read Grep Glob
 ---
 
@@ -62,18 +62,18 @@ Return an empty findings array when nothing qualifies. That's the expected commo
 
 **Do NOT set a `location` field.** These findings target linter config and plugin files, not the source code where the original issue was found. Omitting location ensures they appear as top-level review comments, not inline on unrelated source lines.
 
-**The `description` is the primary output.** It must be self-contained and actionable: tell the developer exactly what to do, which config file to change, and what rule to enable or create. Write it so someone reading a PR comment knows the next step without seeing the diff. Example: "Enable the `no-eval` rule in `.oxlintrc.json` under `rules` to ban all `eval()` calls."
+**The `description` is the primary output.** Write each finding's description as a prompt you could copy-paste directly into a local coding agent. It should be a clear, complete instruction that an agent can act on without additional context. Example: "Add `\"no-eval\": \"error\"` to the `rules` object in `.oxlintrc.json` to ban all `eval()` calls."
 
 The `suggestedFix` carries the machine-readable diff for local application via `warden --fix`. It is not shown in PR comments.
 
 For existing rules:
 - **title**: The rule name (e.g., `no-eval`)
 - **severity**: `low`
-- **description**: What the rule catches, which config file to change, and how. Actionable on its own.
+- **description**: A copy-pasteable prompt: which config file to edit, what to add, and why.
 - **suggestedFix**: A diff enabling the rule in the project's linter config file
 
 For custom rules:
 - **title**: `custom: <rule-name>` (e.g., `custom: no-execsync-interpolation`)
 - **severity**: `low`
-- **description**: What AST pattern the rule matches, which files to create/modify, and how to wire it up. Actionable on its own.
+- **description**: A copy-pasteable prompt: what plugin file to create, what AST pattern it matches, and how to wire it into the linter config.
 - **suggestedFix**: The complete rule implementation file AND the config diff to wire it up. Match the conventions of existing custom rules in the project.
