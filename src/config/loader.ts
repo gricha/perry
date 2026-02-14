@@ -18,6 +18,7 @@ export async function ensureConfigDir(configDir?: string): Promise<void> {
 export function createDefaultAgentConfig(): AgentConfig {
   return {
     port: DEFAULT_AGENT_PORT,
+    host: '0.0.0.0',
     credentials: {
       env: {},
       files: {},
@@ -79,6 +80,7 @@ export async function loadAgentConfig(configDir?: string): Promise<AgentConfig> 
       : config.tailscale;
     return {
       port: config.port || DEFAULT_AGENT_PORT,
+      host: config.host || '0.0.0.0',
       credentials: {
         env: config.credentials?.env || {},
         files: config.credentials?.files || {},

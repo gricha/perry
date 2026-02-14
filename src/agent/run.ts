@@ -45,6 +45,7 @@ function createAgentServer(
   configDir: string,
   config: AgentConfig,
   port: number,
+  hostname: string,
   tailscale?: TailscaleInfo
 ) {
   sessionManager.init(configDir);
@@ -120,7 +121,7 @@ function createAgentServer(
 
   const server = Bun.serve<WebSocketData>({
     port,
-    hostname: '::',
+    hostname,
 
     async fetch(req, server) {
       const url = new URL(req.url);
@@ -229,6 +230,7 @@ function createAgentServer(
 
 export interface StartAgentOptions {
   port?: number;
+  host?: string;
   configDir?: string;
   noHostAccess?: boolean;
 }
@@ -295,12 +297,14 @@ export async function startAgent(options: StartAgentOptions = {}): Promise<void>
   const port =
     options.port || parseInt(process.env.PERRY_PORT || '', 10) || config.port || DEFAULT_AGENT_PORT;
 
+  const host = options.host || process.env.PERRY_HOST || config.host || '0.0.0.0';
+
   console.log(BANNER);
   console.log(`  Documentation: https://gricha.github.io/perry/getting-started`);
   console.log(`  Web UI: http://localhost:${port}`);
   console.log('');
   console.log(`[agent] Config directory: ${configDir}`);
-  console.log(`[agent] Starting on port ${port}...`);
+  console.log(`[agent] Binding to ${host}:${port}...`);
 
   const tailscale = await getTailscaleStatus();
   let tailscaleServeActive = false;
@@ -340,7 +344,7 @@ export async function startAgent(options: StartAgentOptions = {}): Promise<void>
   let terminalHandler: TerminalHandler;
 
   try {
-    const result = createAgentServer(configDir, config, port, tailscaleInfo);
+    const result = createAgentServer(configDir, config, port, host, tailscaleInfo);
     server = result.server;
     fileWatcher = result.fileWatcher;
     terminalHandler = result.terminalHandler;

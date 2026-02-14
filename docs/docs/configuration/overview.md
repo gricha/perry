@@ -23,6 +23,7 @@ Location: `~/.config/perry/config.json`
 ```json
 {
   "port": 7391,
+  "host": "0.0.0.0",
   "credentials": {
     "env": {
       "ANTHROPIC_API_KEY": "sk-ant-...",
@@ -115,6 +116,27 @@ perry config agent myserver.tail1234.ts.net
 ```
 
 If you run any `perry` command without configuring an agent (and no local agent is running), Perry will interactively prompt you for the agent hostname.
+
+## Bind Host
+
+The `host` setting controls which network interface the agent listens on.
+
+| Value | Description |
+|-------|-------------|
+| `0.0.0.0` | All interfaces (default) — accessible from other devices on the network |
+| `127.0.0.1` | Localhost only — only accessible from this machine |
+| Custom IP | Bind to a specific network interface |
+
+You can set this via:
+
+- **Config file**: `"host": "127.0.0.1"` in `config.json`
+- **CLI flag**: `perry agent run --host 127.0.0.1`
+- **Environment variable**: `PERRY_HOST=127.0.0.1`
+- **Setup wizard**: `perry agent config` (Network step)
+
+Priority: CLI flag > `PERRY_HOST` env var > config file > `0.0.0.0`
+
+Use `127.0.0.1` if you only access Perry from the same machine, or if corporate security policies flag services listening on all interfaces. Use `0.0.0.0` if you need remote access (e.g., via Tailscale or from other machines on the LAN).
 
 ## Configuration Sections
 

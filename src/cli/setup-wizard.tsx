@@ -6,9 +6,9 @@ import { loadAgentConfig, saveAgentConfig, getConfigDir, ensureConfigDir } from 
 import { discoverSSHKeys } from '../ssh';
 import type { SSHKeyInfo } from '../shared/client-types';
 
-type Step = 'welcome' | 'auth' | 'github' | 'ssh' | 'tailscale' | 'complete';
+type Step = 'welcome' | 'auth' | 'github' | 'ssh' | 'tailscale' | 'network' | 'complete';
 
-const STEPS: Step[] = ['welcome', 'auth', 'github', 'ssh', 'tailscale', 'complete'];
+const STEPS: Step[] = ['welcome', 'auth', 'github', 'ssh', 'tailscale', 'network', 'complete'];
 
 interface WizardState {
   authToken: string;
@@ -16,6 +16,7 @@ interface WizardState {
   githubToken: string;
   selectedSSHKeys: string[];
   tailscaleAuthKey: string;
+  bindHost: string;
 }
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
@@ -38,6 +39,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         <Text>• Git access (GitHub token)</Text>
         <Text>• SSH keys for workspaces</Text>
         <Text>• Tailscale networking</Text>
+        <Text>• Network bind host</Text>
       </Box>
       <Box marginTop={1}>
         <Text color="gray">Press Enter to continue...</Text>
@@ -246,6 +248,133 @@ function SSHKeySelectStep({
   );
 }
 
+type BindHostOption = '0.0.0.0' | '127.0.0.1' | 'custom';
+
+const BIND_HOST_OPTIONS: { value: BindHostOption; label: string; description: string }[] = [
+  {
+    value: '0.0.0.0',
+    label: 'All interfaces (0.0.0.0)',
+    description: 'Accessible from other devices on the network',
+  },
+  {
+    value: '127.0.0.1',
+    label: 'Localhost only (127.0.0.1)',
+    description: 'Only accessible from this machine',
+  },
+  { value: 'custom', label: 'Custom', description: 'Enter a custom hostname or IP' },
+];
+
+function NetworkStep({
+  value,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const currentOption: BindHostOption =
+    value === '0.0.0.0' ? '0.0.0.0' : value === '127.0.0.1' ? '127.0.0.1' : 'custom';
+  const isCustom = currentOption === 'custom';
+  const [highlighted, setHighlighted] = useState(
+    Math.max(
+      0,
+      BIND_HOST_OPTIONS.findIndex((o) => o.value === currentOption)
+    )
+  );
+  const [editingCustom, setEditingCustom] = useState(false);
+  const [customValue, setCustomValue] = useState(isCustom ? value : '');
+
+  useInput((input, key) => {
+    if (editingCustom) {
+      if (key.return) {
+        if (customValue.trim()) {
+          onChange(customValue.trim());
+        }
+        setEditingCustom(false);
+      } else if (key.escape) {
+        setEditingCustom(false);
+      }
+      return;
+    }
+
+    if (key.upArrow) {
+      setHighlighted((h) => Math.max(0, h - 1));
+    } else if (key.downArrow) {
+      setHighlighted((h) => Math.min(BIND_HOST_OPTIONS.length - 1, h + 1));
+    } else if (input === ' ' || key.return) {
+      const selected = BIND_HOST_OPTIONS[highlighted];
+      if (selected.value === 'custom') {
+        setEditingCustom(true);
+      } else {
+        onChange(selected.value);
+        if (key.return) {
+          onNext();
+          return;
+        }
+      }
+    } else if (key.escape) {
+      onBack();
+    }
+  });
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold>Bind Host</Text>
+      <Text color="gray">
+        Choose which network interface the agent listens on. Use localhost to restrict access to
+        this machine only.
+      </Text>
+      <Box flexDirection="column" marginTop={1}>
+        {BIND_HOST_OPTIONS.map((option, index) => (
+          <Box key={option.value}>
+            <Text color={highlighted === index ? 'cyan' : undefined}>
+              <Text
+                color={
+                  option.value === currentOption || (option.value === 'custom' && isCustom)
+                    ? 'green'
+                    : 'gray'
+                }
+              >
+                {option.value === currentOption || (option.value === 'custom' && isCustom)
+                  ? '(*) '
+                  : '( ) '}
+              </Text>
+              <Text>{option.label}</Text>
+              <Text color="gray"> — {option.description}</Text>
+            </Text>
+          </Box>
+        ))}
+      </Box>
+      {editingCustom && (
+        <Box marginTop={1}>
+          <Text>Host: </Text>
+          <TextInput
+            value={customValue}
+            onChange={setCustomValue}
+            placeholder="e.g. 192.168.1.100"
+          />
+        </Box>
+      )}
+      {isCustom && !editingCustom && value && (
+        <Box marginTop={1}>
+          <Text>Current: </Text>
+          <Text color="cyan">{value}</Text>
+        </Box>
+      )}
+      <Box marginTop={1}>
+        <Text color="gray">
+          {editingCustom
+            ? 'Enter to confirm, Esc to cancel'
+            : 'Space to select, Enter to continue, Esc to go back'}
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
 function CompleteStep({ state, onFinish }: { state: WizardState; onFinish: () => void }) {
   useInput((_input, key) => {
     if (key.return) {
@@ -259,6 +388,8 @@ function CompleteStep({ state, onFinish }: { state: WizardState; onFinish: () =>
   if (state.selectedSSHKeys.length > 0)
     configured.push(`${state.selectedSSHKeys.length} SSH key(s)`);
   if (state.tailscaleAuthKey) configured.push('Tailscale');
+  if (state.bindHost && state.bindHost !== '0.0.0.0')
+    configured.push(`Bind host: ${state.bindHost}`);
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -310,6 +441,7 @@ function SetupWizard() {
     githubToken: '',
     selectedSSHKeys: [],
     tailscaleAuthKey: '',
+    bindHost: '0.0.0.0',
   });
   const [saving, setSaving] = useState(false);
 
@@ -331,6 +463,7 @@ function SetupWizard() {
         githubToken: config.agents?.github?.token || '',
         selectedSSHKeys: config.ssh?.global.copy || [],
         tailscaleAuthKey: config.tailscale?.authKey || '',
+        bindHost: config.host || '0.0.0.0',
       }));
     };
     loadExisting().catch(() => {});
@@ -404,6 +537,10 @@ function SetupWizard() {
         };
       }
 
+      if (state.bindHost) {
+        config.host = state.bindHost;
+      }
+
       await saveAgentConfig(config, configDir);
     } catch {
       // Ignore save errors - user can reconfigure later
@@ -470,6 +607,14 @@ function SetupWizard() {
               onNext={nextStep}
               onBack={prevStep}
               optional
+            />
+          )}
+          {step === 'network' && (
+            <NetworkStep
+              value={state.bindHost}
+              onChange={(v) => setState((s) => ({ ...s, bindHost: v }))}
+              onNext={nextStep}
+              onBack={prevStep}
             />
           )}
           {step === 'complete' && (
