@@ -1,4 +1,1 @@
-oxfmt src/ test/
-git add -u
-bun run lint
-bun x tsc --noEmit
+bun run check
