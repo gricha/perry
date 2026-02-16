@@ -466,6 +466,7 @@ program
     try {
       const agentHost = await getAgentWithFallback();
       const client = await createClient();
+      const token = await getToken();
 
       const workspace = await client.getWorkspace(name);
       if (workspace.status !== 'running') {
@@ -495,6 +496,7 @@ program
         const wsUrl = getTerminalWSUrl(agentHost, name);
         await openWSShell({
           url: wsUrl,
+          token: token || undefined,
           onError: (err) => {
             console.error(`\nConnection error: ${err.message}`);
           },

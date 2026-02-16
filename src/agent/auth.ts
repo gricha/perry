@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'crypto';
 import type { AgentConfig } from '../shared/types';
 import { getTailscaleIdentity } from '../tailscale';
 
-function secureCompare(a: string, b: string): boolean {
+export function secureCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }

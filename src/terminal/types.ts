@@ -26,3 +26,18 @@ export function isControlMessage(data: unknown): data is ControlMessage {
     typeof (data as ControlMessage).rows === 'number'
   );
 }
+
+export interface AuthMessage {
+  type: 'auth';
+  token: string;
+}
+
+export function isAuthMessage(data: unknown): data is AuthMessage {
+  const msg = data as AuthMessage;
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    msg.type === 'auth' &&
+    typeof msg.token === 'string'
+  );
+}

@@ -45,7 +45,7 @@ ${umdContent}
     let ws = null;
     let fitAddon = null;
 
-    async function connect(wsUrl, initialCommand) {
+    async function connect(wsUrl, initialCommand, token) {
       const ghostty = await Ghostty.load();
 
       term = new Terminal({
@@ -100,6 +100,9 @@ ${umdContent}
 
       ws.onopen = () => {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'connected' }));
+        if (token) {
+          ws.send(JSON.stringify({ type: 'auth', token: token }));
+        }
         const dims = term.getDimensions ? term.getDimensions() : { cols: term.cols, rows: term.rows };
         ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
         if (initialCommand) {

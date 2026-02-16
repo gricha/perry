@@ -5,6 +5,7 @@ import { DEFAULT_AGENT_PORT } from '../shared/constants';
 
 export interface WSShellOptions {
   url: string;
+  token?: string;
   onConnect?: () => void;
   onDisconnect?: (code: number) => void;
   onError?: (error: Error) => void;
@@ -121,7 +122,7 @@ export async function openTailscaleSSH(options: TailscaleSSHOptions): Promise<vo
 }
 
 export async function openWSShell(options: WSShellOptions): Promise<void> {
-  const { url, onConnect, onDisconnect, onError } = options;
+  const { url, token, onConnect, onDisconnect, onError } = options;
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
@@ -154,6 +155,10 @@ export async function openWSShell(options: WSShellOptions): Promise<void> {
         stdin.setRawMode(true);
       }
       stdin.resume();
+
+      if (token) {
+        safeSend(JSON.stringify({ type: 'auth', token }));
+      }
 
       sendResize();
 

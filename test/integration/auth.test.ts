@@ -80,8 +80,8 @@ describe('Auth Middleware Integration', () => {
   });
 
   describe('WebSocket Endpoints', () => {
-    it('rejects WebSocket upgrade without auth', async () => {
-      const wsUrl = `${agent.baseUrl.replace('http', 'ws')}/rpc/terminal/test-workspace`;
+    it('returns 404 for non-existent workspace regardless of auth', async () => {
+      const wsUrl = `${agent.baseUrl.replace('http', 'ws')}/rpc/terminal/nonexistent-workspace`;
 
       const result = await new Promise<{ error: Error | null; code?: number }>((resolve) => {
         const ws = new WebSocket(wsUrl);
@@ -97,32 +97,10 @@ describe('Auth Middleware Integration', () => {
         });
       });
 
-      expect(result.code).toBe(401);
+      expect(result.code).toBe(404);
     });
 
-    it('rejects WebSocket upgrade with wrong token', async () => {
-      const wsUrl = `${agent.baseUrl.replace('http', 'ws')}/rpc/terminal/test-workspace`;
-
-      const result = await new Promise<{ error: Error | null; code?: number }>((resolve) => {
-        const ws = new WebSocket(wsUrl, {
-          headers: { Authorization: 'Bearer wrong-token' },
-        });
-        ws.on('error', (err) => {
-          resolve({ error: err });
-        });
-        ws.on('unexpected-response', (_, res) => {
-          resolve({ error: null, code: res.statusCode });
-        });
-        ws.on('open', () => {
-          ws.close();
-          resolve({ error: new Error('WebSocket should not have opened') });
-        });
-      });
-
-      expect(result.code).toBe(401);
-    });
-
-    it('accepts WebSocket upgrade with valid token (returns 404 for non-existent workspace)', async () => {
+    it('returns 404 for non-existent workspace with valid Bearer token', async () => {
       const wsUrl = `${agent.baseUrl.replace('http', 'ws')}/rpc/terminal/nonexistent-workspace`;
 
       const result = await new Promise<{ error: Error | null; code?: number }>((resolve) => {
@@ -137,7 +115,7 @@ describe('Auth Middleware Integration', () => {
         });
         ws.on('open', () => {
           ws.close();
-          resolve({ error: null, code: 200 });
+          resolve({ error: new Error('WebSocket should not have opened') });
         });
       });
 

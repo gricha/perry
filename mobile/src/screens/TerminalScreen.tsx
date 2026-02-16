@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import { useQuery } from '@tanstack/react-query'
-import { api, getTerminalHtml, getTerminalUrl, HOST_WORKSPACE_NAME } from '../lib/api'
+import { api, getTerminalHtml, getTerminalUrl, getToken, HOST_WORKSPACE_NAME } from '../lib/api'
 import { ExtraKeysBar } from '../components/ExtraKeysBar'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -103,11 +103,13 @@ export function TerminalScreen({ route, navigation }: any) {
   }
 
   const wsUrl = getTerminalUrl(name)
+  const token = getToken()
   const escapedCommand = initialCommand ? initialCommand.replace(/\\/g, '\\\\').replace(/'/g, "\\'") : ''
+  const escapedToken = token ? token.replace(/\\/g, '\\\\').replace(/'/g, "\\'") : ''
 
   const injectedJS = `
     if (window.initTerminal) {
-      window.initTerminal('${wsUrl}', '${escapedCommand}');
+      window.initTerminal('${wsUrl}', '${escapedCommand}', '${escapedToken}');
     }
     true;
   `

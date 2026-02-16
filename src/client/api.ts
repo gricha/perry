@@ -187,6 +187,10 @@ export class ApiClient {
     return `${wsUrl}/rpc/terminal/${encodeURIComponent(name)}`;
   }
 
+  getAuthToken(): string | undefined {
+    return this.token;
+  }
+
   getOpencodeUrl(name: string): string {
     const wsUrl = this.baseUrl.replace(/^http/, 'ws');
     return `${wsUrl}/rpc/opencode/${encodeURIComponent(name)}`;
