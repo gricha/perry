@@ -121,11 +121,12 @@ export function createApiClient(baseUrl: string, token?: string): ApiClient {
   const link = new RPCLink({
     url: `${baseUrl}/rpc`,
     fetch: (url, init) => {
-      const headers = new Headers((init as RequestInit)?.headers);
+      const reqInit = init as RequestInit;
+      const headers = new Headers(reqInit?.headers);
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
       }
-      return fetch(url, { ...(init as RequestInit), headers });
+      return fetch(url, { ...reqInit, headers });
     },
   });
   const client = createORPCClient<Client>(link);

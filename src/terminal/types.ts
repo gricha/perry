@@ -33,11 +33,11 @@ export interface AuthMessage {
 }
 
 export function isAuthMessage(data: unknown): data is AuthMessage {
+  const msg = data as AuthMessage;
   return (
     typeof data === 'object' &&
     data !== null &&
-    'type' in data &&
-    (data as AuthMessage).type === 'auth' &&
-    typeof (data as AuthMessage).token === 'string'
+    msg.type === 'auth' &&
+    typeof msg.token === 'string'
   );
 }

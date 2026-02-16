@@ -6,11 +6,6 @@ const TEST_TOKEN = 'test-auth-token-12345';
 
 function waitForOpen(ws: WebSocket, timeout = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      resolve();
-      return;
-    }
-
     const timer = setTimeout(() => reject(new Error('Timeout waiting for connection')), timeout);
     ws.once('open', () => {
       clearTimeout(timer);

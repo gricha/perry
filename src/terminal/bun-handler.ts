@@ -73,7 +73,7 @@ export class TerminalHandler {
           }
         }
       } catch {
-        // Not valid JSON
+        // invalid JSON, reject
       }
       ws.close(4001, 'Authentication failed');
       this.connections.delete(ws);
