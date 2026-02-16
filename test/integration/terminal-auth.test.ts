@@ -40,8 +40,6 @@ function collectMessages(ws: WebSocket, durationMs: number): Promise<string> {
 describe('Terminal WebSocket - Query Token Auth', () => {
   let agent: TestAgent;
   let workspaceName: string;
-  let workspaceCreated = false;
-
   beforeAll(async () => {
     agent = await startTestAgent({
       config: {
@@ -50,27 +48,14 @@ describe('Terminal WebSocket - Query Token Auth', () => {
     });
     workspaceName = agent.generateWorkspaceName();
     const result = await agent.api.createWorkspace({ name: workspaceName });
-    if (result.status === 201) {
-      workspaceCreated = true;
-    }
+    expect(result.status).toBe(201);
   }, 120000);
 
   afterAll(async () => {
-    if (workspaceCreated) {
-      try {
-        await agent.api.deleteWorkspace(workspaceName);
-      } catch {
-        // ignore
-      }
-    }
     await agent.cleanup();
   });
 
   it('authenticates WebSocket via token query param and can execute a command', async () => {
-    if (!workspaceCreated) {
-      return;
-    }
-
     const wsUrl = `ws://127.0.0.1:${agent.port}/rpc/terminal/${workspaceName}?token=${TEST_TOKEN}`;
     const ws = new WebSocket(wsUrl);
 
