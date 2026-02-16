@@ -1,7 +1,8 @@
 import type { ServerWebSocket } from 'bun';
 import { createTerminalSession, TerminalSession } from './handler';
 import { createHostTerminalSession, HostTerminalSession } from './host-handler';
-import { isControlMessage } from './types';
+import { isControlMessage, isAuthMessage } from './types';
+import { secureCompare } from '../agent/auth';
 import { HOST_WORKSPACE_NAME } from '../shared/client-types';
 
 type AnyTerminalSession = TerminalSession | HostTerminalSession;
@@ -11,6 +12,7 @@ interface TerminalConnection {
   session: AnyTerminalSession | null;
   workspaceName: string;
   started: boolean;
+  authenticated: boolean;
 }
 
 export interface TerminalHandlerOptions {
@@ -18,6 +20,7 @@ export interface TerminalHandlerOptions {
   isWorkspaceRunning: (workspaceName: string) => Promise<boolean>;
   isHostAccessAllowed?: () => boolean;
   getPreferredShell?: () => string | undefined;
+  getAuthToken?: () => string | undefined;
 }
 
 export class TerminalHandler {
@@ -25,14 +28,16 @@ export class TerminalHandler {
   private getContainerName: (workspaceName: string) => string;
   private isHostAccessAllowed: () => boolean;
   private getPreferredShell: () => string | undefined;
+  private getAuthToken: () => string | undefined;
 
   constructor(options: TerminalHandlerOptions) {
     this.getContainerName = options.getContainerName;
     this.isHostAccessAllowed = options.isHostAccessAllowed || (() => false);
     this.getPreferredShell = options.getPreferredShell || (() => undefined);
+    this.getAuthToken = options.getAuthToken || (() => undefined);
   }
 
-  handleOpen(ws: ServerWebSocket<unknown>, workspaceName: string): void {
+  handleOpen(ws: ServerWebSocket<unknown>, workspaceName: string, authenticated = true): void {
     const isHostMode = workspaceName === HOST_WORKSPACE_NAME;
 
     if (isHostMode && !this.isHostAccessAllowed()) {
@@ -40,11 +45,15 @@ export class TerminalHandler {
       return;
     }
 
+    const authToken = this.getAuthToken();
+    const isAuthenticated = authenticated || !authToken;
+
     const connection: TerminalConnection = {
       ws,
       session: null,
       workspaceName,
       started: false,
+      authenticated: isAuthenticated,
     };
     this.connections.set(ws, connection);
   }
@@ -52,6 +61,24 @@ export class TerminalHandler {
   handleMessage(ws: ServerWebSocket<unknown>, data: string): void {
     const connection = this.connections.get(ws);
     if (!connection) return;
+
+    if (!connection.authenticated) {
+      try {
+        const message = JSON.parse(data);
+        if (isAuthMessage(message)) {
+          const authToken = this.getAuthToken();
+          if (authToken && secureCompare(message.token, authToken)) {
+            connection.authenticated = true;
+            return;
+          }
+        }
+      } catch {
+        // Not valid JSON
+      }
+      ws.close(4001, 'Authentication failed');
+      this.connections.delete(ws);
+      return;
+    }
 
     if (data.startsWith('{')) {
       try {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Ghostty, Terminal as GhosttyTerminal, FitAddon } from 'ghostty-web'
-import { getTerminalUrl } from '@/lib/api'
+import { getTerminalUrl, getToken } from '@/lib/api'
 
 interface TerminalProps {
   workspaceName: string
@@ -137,6 +137,10 @@ function TerminalInstance({ workspaceName, initialCommand, runId }: TerminalProp
     ws.onopen = () => {
       if (cancelled.current) return
       setIsConnected(true)
+      const token = getToken()
+      if (token) {
+        ws.send(JSON.stringify({ type: 'auth', token }))
+      }
       const { cols, rows } = cached.terminal
       ws.send(JSON.stringify({ type: 'resize', cols, rows }))
 

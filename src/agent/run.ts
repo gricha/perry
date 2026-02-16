@@ -39,6 +39,7 @@ interface TailscaleInfo {
 interface WebSocketData {
   type: 'terminal';
   workspaceName: string;
+  authenticated: boolean;
 }
 
 function createAgentServer(
@@ -89,6 +90,7 @@ function createAgentServer(
     isWorkspaceRunning,
     isHostAccessAllowed: () => currentConfig.allowHostAccess === true,
     getPreferredShell,
+    getAuthToken: () => currentConfig.auth?.token,
   });
 
   const triggerAutoSync = () => {
@@ -143,16 +145,13 @@ function createAgentServer(
         return staticResponse;
       }
 
-      const authResult = checkAuth(req, currentConfig);
-      if (!authResult.ok) {
-        return unauthorizedResponse();
-      }
-
       const terminalMatch = pathname.match(/^\/rpc\/terminal\/([^/]+)$/);
 
       if (terminalMatch) {
         const type: WebSocketData['type'] = 'terminal';
         const workspaceName = decodeURIComponent(terminalMatch[1]);
+
+        const authResult = checkAuth(req, currentConfig);
 
         const running = await isWorkspaceRunning(workspaceName);
         if (!running) {
@@ -160,13 +159,18 @@ function createAgentServer(
         }
 
         const upgraded = server.upgrade(req, {
-          data: { type, workspaceName },
+          data: { type, workspaceName, authenticated: authResult.ok },
         });
 
         if (upgraded) {
           return undefined;
         }
         return new Response('WebSocket upgrade failed', { status: 400 });
+      }
+
+      const authResult = checkAuth(req, currentConfig);
+      if (!authResult.ok) {
+        return unauthorizedResponse();
       }
 
       if (pathname === '/health' && method === 'GET') {
@@ -198,9 +202,9 @@ function createAgentServer(
 
     websocket: {
       open(ws: ServerWebSocket<WebSocketData>) {
-        const { type, workspaceName } = ws.data;
+        const { type, workspaceName, authenticated } = ws.data;
         if (type === 'terminal') {
-          terminalHandler.handleOpen(ws, workspaceName);
+          terminalHandler.handleOpen(ws, workspaceName, authenticated);
         }
       },
 

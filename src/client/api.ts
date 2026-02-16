@@ -184,11 +184,11 @@ export class ApiClient {
 
   getTerminalUrl(name: string): string {
     const wsUrl = this.baseUrl.replace(/^http/, 'ws');
-    const url = new URL(`${wsUrl}/rpc/terminal/${encodeURIComponent(name)}`);
-    if (this.token) {
-      url.searchParams.set('token', this.token);
-    }
-    return url.toString();
+    return `${wsUrl}/rpc/terminal/${encodeURIComponent(name)}`;
+  }
+
+  getAuthToken(): string | undefined {
+    return this.token;
   }
 
   getOpencodeUrl(name: string): string {

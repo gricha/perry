@@ -493,9 +493,10 @@ program
           },
         });
       } else {
-        const wsUrl = getTerminalWSUrl(agentHost, name, token || undefined);
+        const wsUrl = getTerminalWSUrl(agentHost, name);
         await openWSShell({
           url: wsUrl,
+          token: token || undefined,
           onError: (err) => {
             console.error(`\nConnection error: ${err.message}`);
           },

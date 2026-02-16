@@ -37,7 +37,7 @@ function collectMessages(ws: WebSocket, durationMs: number): Promise<string> {
   });
 }
 
-describe('Terminal WebSocket - Query Token Auth', () => {
+describe('Terminal WebSocket - First Message Auth', () => {
   let agent: TestAgent;
   let workspaceName: string;
   beforeAll(async () => {
@@ -55,20 +55,35 @@ describe('Terminal WebSocket - Query Token Auth', () => {
     await agent.cleanup();
   });
 
-  it('authenticates WebSocket via token query param and can execute a command', async () => {
-    const wsUrl = `ws://127.0.0.1:${agent.port}/rpc/terminal/${workspaceName}?token=${TEST_TOKEN}`;
+  it('authenticates WebSocket via first auth message and can execute a command', async () => {
+    const wsUrl = `ws://127.0.0.1:${agent.port}/rpc/terminal/${workspaceName}`;
     const ws = new WebSocket(wsUrl);
 
     await waitForOpen(ws, 15000);
+    ws.send(JSON.stringify({ type: 'auth', token: TEST_TOKEN }));
     ws.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
     await new Promise((r) => setTimeout(r, 300));
 
     const outputPromise = collectMessages(ws, 2500);
-    ws.send('echo "QUERY_TOKEN_AUTH_OK"\n');
+    ws.send('echo "FIRST_MSG_AUTH_OK"\n');
 
     const output = await outputPromise;
-    expect(output).toContain('QUERY_TOKEN_AUTH_OK');
+    expect(output).toContain('FIRST_MSG_AUTH_OK');
 
     ws.close();
   }, 30000);
+
+  it('closes connection with 4001 when sending resize without auth', async () => {
+    const wsUrl = `ws://127.0.0.1:${agent.port}/rpc/terminal/${workspaceName}`;
+    const ws = new WebSocket(wsUrl);
+
+    await waitForOpen(ws, 15000);
+    ws.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
+
+    const closeCode = await new Promise<number>((resolve) => {
+      ws.on('close', (code) => resolve(code));
+    });
+
+    expect(closeCode).toBe(4001);
+  }, 15000);
 });
