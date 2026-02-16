@@ -143,6 +143,26 @@ describe('Auth Middleware Integration', () => {
 
       expect(result.code).toBe(404);
     });
+
+    it('accepts WebSocket upgrade with token in query string (browser-compatible)', async () => {
+      const wsUrl = `${agent.baseUrl.replace('http', 'ws')}/rpc/terminal/nonexistent-workspace?token=${TEST_TOKEN}`;
+
+      const result = await new Promise<{ error: Error | null; code?: number }>((resolve) => {
+        const ws = new WebSocket(wsUrl);
+        ws.on('error', (err) => {
+          resolve({ error: err });
+        });
+        ws.on('unexpected-response', (_, res) => {
+          resolve({ error: null, code: res.statusCode });
+        });
+        ws.on('open', () => {
+          ws.close();
+          resolve({ error: null, code: 200 });
+        });
+      });
+
+      expect(result.code).toBe(404);
+    });
   });
 });
 

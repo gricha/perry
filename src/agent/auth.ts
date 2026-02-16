@@ -39,6 +39,15 @@ export function checkAuth(req: Request, config: AgentConfig): AuthResult {
     return { ok: true, identity: { type: 'tailscale', user: tsIdentity.email } };
   }
 
+  const isWebSocketUpgrade = req.headers.get('Upgrade')?.toLowerCase() === 'websocket';
+  const isTerminalWebSocket = url.pathname.startsWith('/rpc/terminal/');
+  if (isWebSocketUpgrade && isTerminalWebSocket) {
+    const token = url.searchParams.get('token');
+    if (token && secureCompare(token, config.auth.token)) {
+      return { ok: true, identity: { type: 'token' } };
+    }
+  }
+
   const authHeader = req.headers.get('Authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);

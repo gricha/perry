@@ -304,5 +304,10 @@ export const api = {
 
 export function getTerminalUrl(name: string): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/rpc/terminal/${encodeURIComponent(name)}`;
+  const url = new URL(`${protocol}//${window.location.host}/rpc/terminal/${encodeURIComponent(name)}`);
+  const token = getStoredToken();
+  if (token) {
+    url.searchParams.set('token', token);
+  }
+  return url.toString();
 }

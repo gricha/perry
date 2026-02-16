@@ -206,7 +206,7 @@ export async function openWSShell(options: WSShellOptions): Promise<void> {
   });
 }
 
-export function getTerminalWSUrl(worker: string, workspaceName: string): string {
+export function getTerminalWSUrl(worker: string, workspaceName: string, token?: string): string {
   let base = worker;
   if (!base.startsWith('http://') && !base.startsWith('https://')) {
     base = `http://${base}`;
@@ -216,5 +216,9 @@ export function getTerminalWSUrl(worker: string, workspaceName: string): string 
   if (!host.includes(':')) {
     host = `${host}:${DEFAULT_AGENT_PORT}`;
   }
-  return `${wsProtocol}${host}/rpc/terminal/${encodeURIComponent(workspaceName)}`;
+  const url = new URL(`${wsProtocol}${host}/rpc/terminal/${encodeURIComponent(workspaceName)}`);
+  if (token) {
+    url.searchParams.set('token', token);
+  }
+  return url.toString();
 }

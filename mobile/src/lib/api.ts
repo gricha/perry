@@ -320,7 +320,11 @@ export interface SessionInfoWithWorkspace extends SessionInfo {
 
 export function getTerminalUrl(workspaceName: string): string {
   const wsUrl = baseUrl.replace(/^http/, 'ws');
-  return `${wsUrl}/rpc/terminal/${encodeURIComponent(workspaceName)}`;
+  const url = new URL(`${wsUrl}/rpc/terminal/${encodeURIComponent(workspaceName)}`);
+  if (currentToken) {
+    url.searchParams.set('token', currentToken);
+  }
+  return url.toString();
 }
 
 export function getTerminalHtml(): string {

@@ -116,10 +116,17 @@ export async function waitForHealthy(baseUrl: string, timeout = 10000): Promise<
   return false;
 }
 
-export function createApiClient(baseUrl: string): ApiClient {
+export function createApiClient(baseUrl: string, token?: string): ApiClient {
   type Client = RouterClient<AppRouter>;
   const link = new RPCLink({
     url: `${baseUrl}/rpc`,
+    fetch: (url, init) => {
+      const headers = new Headers((init as RequestInit)?.headers);
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      return fetch(url, { ...(init as RequestInit), headers });
+    },
   });
   const client = createORPCClient<Client>(link);
 
@@ -363,7 +370,7 @@ export async function startTestAgent(options: TestAgentOptions = {}): Promise<Te
     throw new Error(`Agent failed to start. Output:\n${agentOutput}`);
   }
 
-  const api = createApiClient(baseUrl);
+  const api = createApiClient(baseUrl, options.config?.auth?.token);
 
   // Track workspaces created by this agent instance for cleanup
   const createdWorkspaces: string[] = [];
