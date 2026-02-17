@@ -5,6 +5,8 @@
 
 FROM ubuntu:noble
 
+ARG RUNTIME=docker
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install prerequisites for adding Docker repository
@@ -15,20 +17,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
   && rm -rf /var/lib/apt/lists/*
 
-# Add Docker's official GPG key and repository
-RUN install -m 0755 -d /etc/apt/keyrings \
-  && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
-  && chmod a+r /etc/apt/keyrings/docker.asc \
-  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+# Add Docker's official GPG key and repository (only for docker runtime)
+RUN if [ "$RUNTIME" = "docker" ]; then \
+      install -m 0755 -d /etc/apt/keyrings \
+      && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
+      && chmod a+r /etc/apt/keyrings/docker.asc \
+      && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null; \
+    fi
 
-# Install Docker Engine, CLI, and essential tools
+# Install Docker Engine, CLI, and essential tools (conditionally install Docker packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    docker-ce \
-    docker-ce-cli \
-    containerd.io \
-    docker-buildx-plugin \
-    docker-compose-plugin \
+    $(if [ "$RUNTIME" = "docker" ]; then echo "docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"; fi) \
     bash \
     sudo \
     openssh-server \
@@ -101,11 +101,16 @@ ENV BUN_INSTALL=/usr/local
 RUN bash -lc "curl -fsSL https://bun.sh/install | bash" \
   && bun --version
 
+# Set DOCKER_HOST for podman runtime (external container engine)
+RUN if [ "$RUNTIME" = "podman" ]; then \
+      echo "ENV DOCKER_HOST=tcp://host.containers.internal:2375" >> /etc/environment; \
+    fi
+
 # Create workspace user with passwordless sudo
 RUN useradd -m -s /bin/bash workspace \
   && echo "workspace:workspace" | chpasswd \
   && usermod -aG sudo workspace \
-  && usermod -aG docker workspace \
+  && (getent group docker && usermod -aG docker workspace || true) \
   && echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Configure npm to use user-writable global directory

@@ -930,22 +930,29 @@ export class WorkspaceManager {
         containerEnv.TS_AUTHKEY = this.config.tailscale.authKey;
       }
 
+      const isPodman = this.config.runtime === 'podman';
       const dockerVolumeName = `${VOLUME_PREFIX}${name}-docker`;
-      if (!(await docker.volumeExists(dockerVolumeName))) {
+
+      // Only create Docker-in-Docker volume for docker runtime
+      if (!isPodman && !(await docker.volumeExists(dockerVolumeName))) {
         await docker.createVolume(dockerVolumeName);
+      }
+
+      const volumes = [{ source: volumeName, target: '/home/workspace', readonly: false }];
+
+      // Only add Docker-in-Docker volume for docker runtime
+      if (!isPodman) {
+        volumes.push({ source: dockerVolumeName, target: '/var/lib/docker', readonly: false });
       }
 
       const containerId = await docker.createContainer({
         name: containerName,
         image: workspaceImage,
         hostname: name,
-        privileged: true,
+        privileged: !isPodman, // Skip privileged mode for podman
         restartPolicy: 'unless-stopped',
         env: containerEnv,
-        volumes: [
-          { source: volumeName, target: '/home/workspace', readonly: false },
-          { source: dockerVolumeName, target: '/var/lib/docker', readonly: false },
-        ],
+        volumes,
         ports: [{ hostPort: sshPort, containerPort: 22, protocol: 'tcp' }],
         labels: {
           'workspace.name': name,
@@ -1070,22 +1077,29 @@ export class WorkspaceManager {
           containerEnv.TS_AUTHKEY = this.config.tailscale.authKey;
         }
 
+        const isPodman = this.config.runtime === 'podman';
         const dockerVolumeName = `${VOLUME_PREFIX}${name}-docker`;
-        if (!(await docker.volumeExists(dockerVolumeName))) {
+
+        // Only create Docker-in-Docker volume for docker runtime
+        if (!isPodman && !(await docker.volumeExists(dockerVolumeName))) {
           await docker.createVolume(dockerVolumeName);
+        }
+
+        const volumes = [{ source: volumeName, target: '/home/workspace', readonly: false }];
+
+        // Only add Docker-in-Docker volume for docker runtime
+        if (!isPodman) {
+          volumes.push({ source: dockerVolumeName, target: '/var/lib/docker', readonly: false });
         }
 
         const containerId = await docker.createContainer({
           name: containerName,
           image: workspaceImage,
           hostname: name,
-          privileged: true,
+          privileged: !isPodman, // Skip privileged mode for podman
           restartPolicy: 'unless-stopped',
           env: containerEnv,
-          volumes: [
-            { source: volumeName, target: '/home/workspace', readonly: false },
-            { source: dockerVolumeName, target: '/var/lib/docker', readonly: false },
-          ],
+          volumes,
           ports: [{ hostPort: sshPort, containerPort: 22, protocol: 'tcp' }],
           labels: {
             'workspace.name': name,
@@ -1345,17 +1359,22 @@ export class WorkspaceManager {
         containerEnv.TS_AUTHKEY = this.config.tailscale.authKey;
       }
 
+      const isPodman = this.config.runtime === 'podman';
+      const volumes = [{ source: cloneVolumeName, target: '/home/workspace', readonly: false }];
+
+      // Only add Docker-in-Docker volume for docker runtime
+      if (!isPodman) {
+        volumes.push({ source: cloneDockerVolume, target: '/var/lib/docker', readonly: false });
+      }
+
       const containerId = await docker.createContainer({
         name: cloneContainerName,
         image: workspaceImage,
         hostname: cloneName,
-        privileged: true,
+        privileged: !isPodman, // Skip privileged mode for podman
         restartPolicy: 'unless-stopped',
         env: containerEnv,
-        volumes: [
-          { source: cloneVolumeName, target: '/home/workspace', readonly: false },
-          { source: cloneDockerVolume, target: '/var/lib/docker', readonly: false },
-        ],
+        volumes,
         ports: [{ hostPort: sshPort, containerPort: 22, protocol: 'tcp' }],
         labels: {
           'workspace.name': cloneName,

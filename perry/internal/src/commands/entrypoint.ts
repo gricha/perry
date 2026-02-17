@@ -14,13 +14,21 @@ export const runEntrypoint = async () => {
   } catch (error) {
     console.log(`[entrypoint] Failed to add SSH key (non-fatal): ${(error as Error).message}`);
   }
-  console.log("[entrypoint] Starting Docker daemon...");
-  ensureDockerd();
-  const ready = await waitForDocker();
-  if (!ready) {
-    process.exit(1);
-    return;
+
+  // Skip Docker daemon setup if DOCKER_HOST is set (external container engine)
+  const useExternalDocker = !!process.env.DOCKER_HOST;
+  if (!useExternalDocker) {
+    console.log("[entrypoint] Starting Docker daemon...");
+    ensureDockerd();
+    const ready = await waitForDocker();
+    if (!ready) {
+      process.exit(1);
+      return;
+    }
+  } else {
+    console.log("[entrypoint] Using external container engine at DOCKER_HOST");
   }
+
   console.log("[entrypoint] Running workspace initialization as workspace user...");
   try {
     await runCommand("sudo", ["-u", "workspace", "-E", "/usr/local/bin/workspace-internal", "init"], {
@@ -44,5 +52,12 @@ export const runEntrypoint = async () => {
     await waitForTailscaled();
   }
   void monitorServices();
-  await tailDockerdLogs();
+
+  // Skip tailing dockerd logs if using external container engine
+  if (!useExternalDocker) {
+    await tailDockerdLogs();
+  } else {
+    // Keep process alive for external container engine mode
+    await new Promise(() => {});
+  }
 };

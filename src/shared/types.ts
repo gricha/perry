@@ -109,6 +109,7 @@ export interface McpServerDefinition {
 export interface AgentConfig {
   port: number;
   host?: string;
+  runtime?: 'docker' | 'podman';
   credentials: WorkspaceCredentials;
   scripts: WorkspaceScripts;
   agents?: CodingAgents;
