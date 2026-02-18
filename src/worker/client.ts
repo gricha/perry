@@ -50,7 +50,11 @@ async function execFetch(
 ): Promise<{ ok: boolean; status: number; json(): Promise<any>; text(): Promise<string> }> {
   const method = options?.method || 'GET';
   const url = `http://localhost:${WORKER_PORT}${path}`;
-  const curlArgs = ['-s', '-w', '\\n%{http_code}', '-X', method, url];
+  const curlArgs = ['-s', '-w', '\\n%{http_code}', '-X', method];
+  if (options?.timeout) {
+    curlArgs.push('--max-time', String(Math.ceil(options.timeout / 1000)));
+  }
+  curlArgs.push(url);
   const result = await execInContainer(containerName, ['curl', ...curlArgs], { user: 'workspace' });
 
   const lines = result.stdout.trim().split('\n');
