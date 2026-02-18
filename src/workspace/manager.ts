@@ -405,6 +405,14 @@ export class WorkspaceManager {
   }
 
   private async copyPerryWorker(containerName: string): Promise<void> {
+    if (this.config.runtime === 'podman') {
+      // Compiled binaries use host glibc linker paths (e.g. /nix/store/...)
+      // that don't exist in the Ubuntu workspace container. Copy JS dist
+      // and use bun (already installed in the image) as runtime instead.
+      await this.copyPerryWorkerJs(containerName);
+      return;
+    }
+
     const installedPath = path.join(os.homedir(), '.perry', 'bin', 'perry');
     const cwdDistPath = path.join(process.cwd(), 'dist', 'perry-worker');
     const distDir = path.dirname(new URL(import.meta.url).pathname);
@@ -450,6 +458,86 @@ export class WorkspaceManager {
     await docker.execInContainer(containerName, ['chmod', '755', destPath], {
       user: 'root',
     });
+  }
+
+  /**
+   * Podman-specific worker sync: copy JS dist directory + bun wrapper
+   * instead of a compiled binary that may have incompatible linker paths.
+   */
+  private async copyPerryWorkerJs(containerName: string): Promise<void> {
+    // Find dist directory containing index.js
+    const cwdDistDir = path.join(process.cwd(), 'dist');
+    const metaDistDir = path.dirname(new URL(import.meta.url).pathname);
+
+    let sourceDistDir: string | null = null;
+    for (const candidate of [cwdDistDir, metaDistDir]) {
+      try {
+        await fs.access(path.join(candidate, 'index.js'));
+        sourceDistDir = candidate;
+        break;
+      } catch {
+        // Try next
+      }
+    }
+
+    if (!sourceDistDir) {
+      console.warn('[sync] JS dist directory not found, session discovery may not work');
+      return;
+    }
+
+    // Find package.json (needed by bun for module resolution)
+    const cwdPkgJson = path.join(process.cwd(), 'package.json');
+    const parentPkgJson = path.join(sourceDistDir, '..', 'package.json');
+    let packageJsonPath: string | null = null;
+    for (const candidate of [cwdPkgJson, parentPkgJson]) {
+      try {
+        await fs.access(candidate);
+        packageJsonPath = candidate;
+        break;
+      } catch {
+        // Try next
+      }
+    }
+
+    try {
+      // Create destination and copy dist directory
+      await docker.execInContainer(containerName, ['mkdir', '-p', '/opt/perry'], { user: 'root' });
+      await docker.copyToContainer(containerName, sourceDistDir, '/opt/perry/dist', {
+        timeoutMs: 60_000,
+      });
+
+      // Copy package.json if found
+      if (packageJsonPath) {
+        await docker.copyToContainer(containerName, packageJsonPath, '/opt/perry/package.json', {
+          timeoutMs: 10_000,
+        });
+      }
+
+      // Create bun wrapper at /usr/local/bin/perry
+      await docker.execInContainer(
+        containerName,
+        [
+          'sh',
+          '-c',
+          'printf \'#!/bin/sh\\nexec bun /opt/perry/dist/index.js "$@"\\n\' > /usr/local/bin/perry && chmod +x /usr/local/bin/perry',
+        ],
+        { user: 'root' }
+      );
+
+      // Symlink for workspace user PATH
+      await docker.execInContainer(
+        containerName,
+        [
+          'sh',
+          '-c',
+          'mkdir -p /home/workspace/.local/bin && ln -sf /usr/local/bin/perry /home/workspace/.local/bin/perry',
+        ],
+        { user: 'root' }
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`[sync] Failed to copy JS dist to ${containerName}: ${message}`);
+    }
   }
 
   private async ensurePerryOnPath(containerName: string): Promise<void> {
