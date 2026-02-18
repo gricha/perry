@@ -102,6 +102,7 @@ export async function loadAgentConfig(configDir?: string): Promise<AgentConfig> 
       },
       skills: Array.isArray(config.skills) ? config.skills : [],
       mcpServers: Array.isArray(config.mcpServers) ? config.mcpServers : [],
+      runtime: config.runtime || 'docker',
       allowHostAccess: config.allowHostAccess ?? true,
       ssh: {
         autoAuthorizeHostKeys: config.ssh?.autoAuthorizeHostKeys ?? true,

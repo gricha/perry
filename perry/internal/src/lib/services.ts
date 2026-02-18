@@ -49,9 +49,10 @@ const isProcessRunning = async (name: string) => {
 export const monitorServices = async () => {
   console.log("[entrypoint] Starting service monitor...");
   const hasTailscale = !!process.env.TS_AUTHKEY;
+  const useExternalDocker = !!process.env.DOCKER_HOST;
   while (true) {
     await delay(10000);
-    if (!(await isProcessRunning("dockerd"))) {
+    if (!useExternalDocker && !(await isProcessRunning("dockerd"))) {
       console.log("[entrypoint] Restarting Docker daemon...");
       startDockerd();
       await delay(2000);
