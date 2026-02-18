@@ -597,7 +597,15 @@ export class WorkspaceManager {
         try {
           const result = await docker.execInContainer(
             containerName,
-            ['curl', '-s', '-w', '\\n%{http_code}', `http://localhost:${WORKER_PORT}/health`],
+            [
+              'curl',
+              '-s',
+              '--max-time',
+              '1',
+              '-w',
+              '\\n%{http_code}',
+              `http://localhost:${WORKER_PORT}/health`,
+            ],
             { user: 'workspace' }
           );
           const lines = result.stdout.trim().split('\n');
