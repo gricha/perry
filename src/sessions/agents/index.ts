@@ -27,17 +27,19 @@ const _providers: Record<AgentType, AgentSessionProvider> = {
 
 export async function discoverAllSessions(
   containerName: string,
-  _exec: ExecInContainer
+  _exec: ExecInContainer,
+  runtime?: 'docker' | 'podman'
 ): Promise<RawSession[]> {
-  return discoverSessionsViaWorker(containerName);
+  return discoverSessionsViaWorker(containerName, runtime);
 }
 
 export async function getSessionDetails(
   containerName: string,
   rawSession: RawSession,
-  _exec: ExecInContainer
+  _exec: ExecInContainer,
+  runtime?: 'docker' | 'podman'
 ): Promise<SessionListItem | null> {
-  return getSessionDetailsViaWorker(containerName, rawSession);
+  return getSessionDetailsViaWorker(containerName, rawSession, runtime);
 }
 
 export async function getSessionMessages(
@@ -45,9 +47,10 @@ export async function getSessionMessages(
   sessionId: string,
   agentType: AgentType,
   _exec: ExecInContainer,
-  _projectPath?: string
+  _projectPath?: string,
+  runtime?: 'docker' | 'podman'
 ): Promise<{ id: string; agentType: AgentType; messages: SessionMessage[] } | null> {
-  const result = await getSessionMessagesViaWorker(containerName, sessionId);
+  const result = await getSessionMessagesViaWorker(containerName, sessionId, runtime);
   if (!result) return null;
   return { ...result, agentType };
 }
@@ -55,10 +58,11 @@ export async function getSessionMessages(
 export async function findSessionMessages(
   containerName: string,
   sessionId: string,
-  _exec: ExecInContainer
+  _exec: ExecInContainer,
+  runtime?: 'docker' | 'podman'
 ): Promise<{ id: string; agentType: AgentType; messages: SessionMessage[] } | null> {
   const { createWorkerClient } = await import('../../worker/client');
-  const client = await createWorkerClient(containerName);
+  const client = await createWorkerClient(containerName, { runtime });
 
   const session = await client.getSession(sessionId);
   if (!session) {
@@ -87,9 +91,10 @@ export async function deleteSession(
   containerName: string,
   sessionId: string,
   _agentType: AgentType,
-  _exec: ExecInContainer
+  _exec: ExecInContainer,
+  runtime?: 'docker' | 'podman'
 ): Promise<{ success: boolean; error?: string }> {
-  return deleteSessionViaWorker(containerName, sessionId);
+  return deleteSessionViaWorker(containerName, sessionId, runtime);
 }
 
 export interface SearchResult {

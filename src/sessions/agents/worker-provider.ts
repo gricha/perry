@@ -4,17 +4,24 @@ import { createWorkerClient, type WorkerClient } from '../../worker/client';
 
 const clientCache = new Map<string, WorkerClient>();
 
-async function getWorkerClient(containerName: string): Promise<WorkerClient> {
-  let client = clientCache.get(containerName);
+async function getWorkerClient(
+  containerName: string,
+  runtime?: 'docker' | 'podman'
+): Promise<WorkerClient> {
+  const cacheKey = `${containerName}:${runtime || 'docker'}`;
+  let client = clientCache.get(cacheKey);
   if (!client) {
-    client = await createWorkerClient(containerName);
-    clientCache.set(containerName, client);
+    client = await createWorkerClient(containerName, { runtime });
+    clientCache.set(cacheKey, client);
   }
   return client;
 }
 
-export async function discoverSessionsViaWorker(containerName: string): Promise<RawSession[]> {
-  const client = await getWorkerClient(containerName);
+export async function discoverSessionsViaWorker(
+  containerName: string,
+  runtime?: 'docker' | 'podman'
+): Promise<RawSession[]> {
+  const client = await getWorkerClient(containerName, runtime);
   const sessions = await client.listSessions();
 
   return sessions.map((s) => ({
@@ -29,9 +36,10 @@ export async function discoverSessionsViaWorker(containerName: string): Promise<
 
 export async function getSessionDetailsViaWorker(
   containerName: string,
-  rawSession: RawSession
+  rawSession: RawSession,
+  runtime?: 'docker' | 'podman'
 ): Promise<SessionListItem | null> {
-  const client = await getWorkerClient(containerName);
+  const client = await getWorkerClient(containerName, runtime);
   const session = await client.getSession(rawSession.id);
 
   if (!session) {
@@ -51,9 +59,10 @@ export async function getSessionDetailsViaWorker(
 
 export async function getSessionMessagesViaWorker(
   containerName: string,
-  sessionId: string
+  sessionId: string,
+  runtime?: 'docker' | 'podman'
 ): Promise<{ id: string; messages: SessionMessage[] } | null> {
-  const client = await getWorkerClient(containerName);
+  const client = await getWorkerClient(containerName, runtime);
   const result = await client.getMessages(sessionId, { limit: 1000, offset: 0 });
 
   if (!result || result.messages.length === 0) {
@@ -74,9 +83,10 @@ export async function getSessionMessagesViaWorker(
 
 export async function deleteSessionViaWorker(
   containerName: string,
-  sessionId: string
+  sessionId: string,
+  runtime?: 'docker' | 'podman'
 ): Promise<{ success: boolean; error?: string }> {
-  const client = await getWorkerClient(containerName);
+  const client = await getWorkerClient(containerName, runtime);
   return client.deleteSession(sessionId);
 }
 

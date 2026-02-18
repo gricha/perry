@@ -493,13 +493,7 @@ export class WorkspaceManager {
     options: { strictWorker: boolean }
   ): Promise<void> {
     const WORKER_PORT = 7392;
-    const ip = await docker.getContainerIp(containerName);
-    if (!ip) {
-      console.warn(
-        `[sync] Could not get container IP for ${containerName}, skipping worker server`
-      );
-      return;
-    }
+    const isPodman = this.config.runtime === 'podman';
 
     const desiredVersion = pkg.version;
 
@@ -510,21 +504,58 @@ export class WorkspaceManager {
         })
       ).exitCode === 0;
 
-    try {
-      const healthResponse = await fetch(`http://${ip}:${WORKER_PORT}/health`, {
-        signal: AbortSignal.timeout(1000),
-      });
+    const checkHealth = async (): Promise<{ ok: boolean; version?: string }> => {
+      if (isPodman) {
+        try {
+          const result = await docker.execInContainer(
+            containerName,
+            ['curl', '-s', '-w', '\\n%{http_code}', `http://localhost:${WORKER_PORT}/health`],
+            { user: 'workspace' }
+          );
+          const lines = result.stdout.trim().split('\n');
+          const statusCode = parseInt(lines.pop() || '0', 10);
+          const body = lines.join('\n');
+          if (statusCode >= 200 && statusCode < 300) {
+            const health = JSON.parse(body);
+            return { ok: true, version: health.version };
+          }
+          return { ok: false };
+        } catch {
+          return { ok: false };
+        }
+      } else {
+        const ip = await docker.getContainerIp(containerName);
+        if (!ip) {
+          console.warn(
+            `[sync] Could not get container IP for ${containerName}, skipping worker server`
+          );
+          return { ok: false };
+        }
+        try {
+          const healthResponse = await fetch(`http://${ip}:${WORKER_PORT}/health`, {
+            signal: AbortSignal.timeout(1000),
+          });
+          if (healthResponse.ok) {
+            const health = (await healthResponse.json().catch(() => null)) as {
+              version?: string;
+            } | null;
+            return { ok: true, version: health?.version };
+          }
+          return { ok: false };
+        } catch {
+          return { ok: false };
+        }
+      }
+    };
 
-      if (healthResponse.ok) {
+    try {
+      const health = await checkHealth();
+      if (health.ok) {
         if (!hasSyncedPerry) {
           return;
         }
 
-        const health = (await healthResponse.json().catch(() => null)) as {
-          version?: string;
-        } | null;
-
-        if (health?.version === desiredVersion) {
+        if (health.version === desiredVersion) {
           return;
         }
 
@@ -552,11 +583,8 @@ export class WorkspaceManager {
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 200));
       try {
-        const response = await fetch(`http://${ip}:${WORKER_PORT}/health`, {
-          signal: AbortSignal.timeout(500),
-        });
-
-        if (!response.ok) {
+        const health = await checkHealth();
+        if (!health.ok) {
           continue;
         }
 
@@ -564,8 +592,7 @@ export class WorkspaceManager {
           return;
         }
 
-        const health = (await response.json().catch(() => null)) as { version?: string } | null;
-        if (health?.version === desiredVersion) {
+        if (health.version === desiredVersion) {
           return;
         }
       } catch {
@@ -931,6 +958,12 @@ export class WorkspaceManager {
       }
 
       const isPodman = this.config.runtime === 'podman';
+
+      // For podman runtime, pass DOCKER_HOST so entrypoint skips local dockerd
+      if (isPodman && process.env.DOCKER_HOST) {
+        containerEnv.DOCKER_HOST = process.env.DOCKER_HOST;
+      }
+
       const dockerVolumeName = `${VOLUME_PREFIX}${name}-docker`;
 
       // Only create Docker-in-Docker volume for docker runtime
@@ -948,7 +981,7 @@ export class WorkspaceManager {
       const containerId = await docker.createContainer({
         name: containerName,
         image: workspaceImage,
-        hostname: name,
+        hostname: isPodman ? undefined : name, // Skip hostname for podman (UTS namespace conflict)
         privileged: !isPodman, // Skip privileged mode for podman
         restartPolicy: 'unless-stopped',
         env: containerEnv,
@@ -1078,6 +1111,12 @@ export class WorkspaceManager {
         }
 
         const isPodman = this.config.runtime === 'podman';
+
+        // For podman runtime, pass DOCKER_HOST so entrypoint skips local dockerd
+        if (isPodman && process.env.DOCKER_HOST) {
+          containerEnv.DOCKER_HOST = process.env.DOCKER_HOST;
+        }
+
         const dockerVolumeName = `${VOLUME_PREFIX}${name}-docker`;
 
         // Only create Docker-in-Docker volume for docker runtime
@@ -1095,7 +1134,7 @@ export class WorkspaceManager {
         const containerId = await docker.createContainer({
           name: containerName,
           image: workspaceImage,
-          hostname: name,
+          hostname: isPodman ? undefined : name, // Skip hostname for podman (UTS namespace conflict)
           privileged: !isPodman, // Skip privileged mode for podman
           restartPolicy: 'unless-stopped',
           env: containerEnv,
@@ -1360,6 +1399,12 @@ export class WorkspaceManager {
       }
 
       const isPodman = this.config.runtime === 'podman';
+
+      // For podman runtime, pass DOCKER_HOST so entrypoint skips local dockerd
+      if (isPodman && process.env.DOCKER_HOST) {
+        containerEnv.DOCKER_HOST = process.env.DOCKER_HOST;
+      }
+
       const volumes = [{ source: cloneVolumeName, target: '/home/workspace', readonly: false }];
 
       // Only add Docker-in-Docker volume for docker runtime
@@ -1370,7 +1415,7 @@ export class WorkspaceManager {
       const containerId = await docker.createContainer({
         name: cloneContainerName,
         image: workspaceImage,
-        hostname: cloneName,
+        hostname: isPodman ? undefined : cloneName, // Skip hostname for podman (UTS namespace conflict)
         privileged: !isPodman, // Skip privileged mode for podman
         restartPolicy: 'unless-stopped',
         env: containerEnv,

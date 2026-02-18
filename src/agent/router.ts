@@ -240,7 +240,9 @@ export function createRouter(ctx: RouterContext) {
       if (workspace.status === 'running') {
         try {
           const containerName = getContainerName(input.name);
-          const client = await createWorkerClient(containerName);
+          const client = await createWorkerClient(containerName, {
+            runtime: ctx.config.get().runtime,
+          });
           const health = await client.health();
           workerVersion = health.version;
         } catch {
@@ -951,8 +953,9 @@ export function createRouter(ctx: RouterContext) {
     }
 
     const containerName = `workspace-${input.workspaceName}`;
+    const runtime = ctx.config.get().runtime;
 
-    const rawSessions = await discoverAllSessions(containerName, execInContainer);
+    const rawSessions = await discoverAllSessions(containerName, execInContainer, runtime);
 
     const customNames = await getSessionNamesForWorkspace(ctx.stateDir, input.workspaceName);
 
@@ -973,7 +976,7 @@ export function createRouter(ctx: RouterContext) {
 
     const detailsResults = await Promise.all(
       paginatedRawSessions.map((rawSession) =>
-        getAgentSessionDetails(containerName, rawSession, execInContainer)
+        getAgentSessionDetails(containerName, rawSession, execInContainer, runtime)
       )
     );
 
@@ -1057,15 +1060,17 @@ export function createRouter(ctx: RouterContext) {
           ? toClientAgentType(record.agentType)
           : input.agentType;
 
+        const runtime = ctx.config.get().runtime;
         result = resolvedAgentType
           ? await getSessionMessages(
               containerName,
               agentSessionId,
               resolvedAgentType,
               execInContainer,
-              input.projectPath
+              input.projectPath,
+              runtime
             )
-          : await findSessionMessages(containerName, agentSessionId, execInContainer);
+          : await findSessionMessages(containerName, agentSessionId, execInContainer, runtime);
 
         if (result && !record) {
           const agentType = toRegistryAgentType(result.agentType || resolvedAgentType);
@@ -1201,6 +1206,7 @@ export function createRouter(ctx: RouterContext) {
       }
 
       const containerName = `workspace-${input.workspaceName}`;
+      const runtime = ctx.config.get().runtime;
 
       const record = await resolveSessionRecord(input.sessionId);
       const agentSessionId = record?.agentSessionId || input.sessionId;
@@ -1209,7 +1215,8 @@ export function createRouter(ctx: RouterContext) {
         containerName,
         agentSessionId,
         agentType,
-        execInContainer
+        execInContainer,
+        runtime
       );
 
       if (!result.success) {
